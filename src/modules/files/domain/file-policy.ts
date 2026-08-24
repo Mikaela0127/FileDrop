@@ -15,3 +15,9 @@ export function isAllowedFileSize(sizeBytes: number): boolean {
     sizeBytes <= MAX_FILE_SIZE_BYTES
   );
 }
+
+export function isAllowedExpirationSeconds(expirationSeconds: number): boolean {
+  return EXPIRATION_OPTIONS.some(
+    (option) => option.seconds === expirationSeconds,
+  );
+}

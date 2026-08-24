@@ -25,9 +25,10 @@ file bytes only; PostgreSQL stores metadata and lifecycle state only.
 ## Module boundaries
 
 ```text
-src/app                         HTTP and UI delivery
+src/app                         Next.js route composition and UI delivery
 src/modules/files/domain        File policies and lifecycle rules
 src/modules/files/application   Upload, download, and cleanup use cases
+src/modules/files/delivery      Provider-neutral HTTP contracts
 src/modules/files/infrastructure Prisma and R2 adapters
 src/lib                         Shared configuration and technical utilities
 ```
@@ -35,6 +36,24 @@ src/lib                         Shared configuration and technical utilities
 Route handlers must not contain Prisma queries or R2 SDK calls directly. They
 validate HTTP input, invoke an application use case, and translate its result to
 an HTTP response.
+
+## Upload initialization boundary
+
+```text
+Untrusted HTTP body
+        │ strict Zod shape validation
+        ▼
+InitializeUpload use case
+        │ domain metadata policy
+        ├──> UploadUrlProvider ──> short-lived HTTPS PUT authorization
+        └──> FileRepository ─────> PENDING metadata + SHA-256 token hash
+```
+
+The 256-bit raw share token is returned once and is never persisted. Object keys
+contain an opaque UUID rather than the user-controlled file name. Signed upload
+URLs live for at most 15 minutes and are never stored. The Next.js route is not
+published until both owner authentication and the R2 adapter can be composed at
+the delivery boundary.
 
 ## Persistence boundary
 

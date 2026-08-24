@@ -21,7 +21,10 @@
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "security:secrets": "gitleaks git --redact --no-banner --verbose .",
+    "security:audit": "pnpm audit --audit-level high",
+    "hooks:install": "git config core.hooksPath .githooks"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.9.1",

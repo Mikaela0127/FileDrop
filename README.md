@@ -5,7 +5,9 @@ engineering portfolio project. File metadata lives in PostgreSQL; file bytes liv
 in private S3-compatible object storage.
 
 The application is under active development. The current repository contains the
-Day 2 persistence foundation, not a usable upload service yet.
+Day 3 secure upload-initialization core, not a usable upload service yet. The
+public upload route remains intentionally disabled until owner authentication and
+the Cloudflare R2 adapter are ready.
 
 ## Requirements
 
@@ -72,12 +74,24 @@ pnpm typecheck
 pnpm test
 pnpm test:integration
 pnpm build
+pnpm security:secrets
+pnpm security:audit
 ```
 
 The same checks run in GitHub Actions for pull requests and pushes to `main`.
 The default production build uses Next.js's supported Webpack path so it also
 works in restricted development environments. Run `pnpm build:turbo` to evaluate
 the default Turbopack build in an unrestricted environment.
+
+Before your first commit, install the repository-owned secret-scanning hook:
+
+```bash
+brew install gitleaks
+pnpm hooks:install
+```
+
+See [the commit security gate](docs/security/commit-gate.md) for the full privacy
+and credential review checklist.
 
 ## Architecture
 
@@ -86,6 +100,7 @@ the default Turbopack build in an unrestricted environment.
 - [ADR 0002: Direct object-storage transfer](docs/decisions/0002-direct-object-storage-transfer.md)
 - [ADR 0003: Owner-only uploads](docs/decisions/0003-owner-only-upload.md)
 - [ADR 0004: PostgreSQL file metadata](docs/decisions/0004-postgresql-file-metadata.md)
+- [ADR 0005: Secure upload initialization](docs/decisions/0005-secure-upload-initialization.md)
 
 ## Confirmed MVP policy
 
@@ -99,5 +114,7 @@ the default Turbopack build in an unrestricted environment.
 ## Delivery plan
 
 The two-week implementation schedule runs from 2026-08-24 through 2026-09-06.
-Day 2 establishes Docker Compose, PostgreSQL 18, Prisma migrations, validated
-server configuration, and a provider-neutral file repository.
+Day 3 establishes strict upload metadata validation, opaque object keys, hashed
+256-bit share tokens, a provider-neutral upload URL port, and a tested
+upload-initialization use case. R2 integration and the authenticated HTTP route
+remain later milestones.
