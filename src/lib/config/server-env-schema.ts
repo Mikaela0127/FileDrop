@@ -1,0 +1,86 @@
+import { z } from "zod";
+
+const optionalString = (schema: z.ZodString) =>
+  z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    schema.optional(),
+  );
+
+function usesProtocol(value: string, protocols: readonly string[]): boolean {
+  try {
+    return protocols.includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
+
+const appUrlSchema = z
+  .url("APP_URL must be a valid URL")
+  .refine(
+    (value) => usesProtocol(value, ["http:", "https:"]),
+    "APP_URL must use http or https",
+  );
+
+const databaseUrlSchema = z
+  .url("DATABASE_URL must be a valid URL")
+  .refine(
+    (value) => usesProtocol(value, ["postgres:", "postgresql:"]),
+    "DATABASE_URL must use the postgres or postgresql protocol",
+  );
+
+export const serverEnvSchema = z
+  .object({
+    APP_URL: appUrlSchema,
+    DATABASE_URL: databaseUrlSchema,
+    SESSION_SECRET: optionalString(
+      z.string().min(32, "SESSION_SECRET must contain at least 32 characters"),
+    ),
+    UPLOAD_PASSWORD_HASH: optionalString(
+      z
+        .string()
+        .min(20, "UPLOAD_PASSWORD_HASH does not look like a password hash"),
+    ),
+    CRON_SECRET: optionalString(
+      z.string().min(32, "CRON_SECRET must contain at least 32 characters"),
+    ),
+    R2_ACCOUNT_ID: optionalString(z.string().min(1)),
+    R2_ACCESS_KEY_ID: optionalString(z.string().min(1)),
+    R2_SECRET_ACCESS_KEY: optionalString(z.string().min(1)),
+    R2_BUCKET_NAME: optionalString(z.string().min(1)),
+  })
+  .superRefine((environment, context) => {
+    const r2Keys = [
+      "R2_ACCOUNT_ID",
+      "R2_ACCESS_KEY_ID",
+      "R2_SECRET_ACCESS_KEY",
+      "R2_BUCKET_NAME",
+    ] as const;
+    const configuredR2Keys = r2Keys.filter((key) => environment[key]);
+
+    if (
+      configuredR2Keys.length > 0 &&
+      configuredR2Keys.length < r2Keys.length
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "R2 configuration must provide all four R2 variables together",
+        path: ["R2_ACCOUNT_ID"],
+      });
+    }
+  });
+
+export type ServerEnv = z.infer<typeof serverEnvSchema>;
+
+export function parseServerEnv(
+  environment: Record<string, string | undefined>,
+): ServerEnv {
+  const result = serverEnvSchema.safeParse(environment);
+
+  if (!result.success) {
+    throw new Error(
+      `Invalid server environment:\n${z.prettifyError(result.error)}`,
+    );
+  }
+
+  return result.data;
+}

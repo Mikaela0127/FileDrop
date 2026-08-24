@@ -6,6 +6,7 @@ export default defineConfig({
       reporter: ["text", "html"],
     },
     environment: "node",
+    exclude: ["src/**/*.integration.test.ts"],
     include: ["src/**/*.test.ts"],
   },
 });

@@ -13,6 +13,24 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      APP_URL: http://localhost:3000
+      DATABASE_URL: postgresql://filedrop:filedrop@localhost:5432/filedrop
+
+    services:
+      postgres:
+        image: postgres:18.6-alpine3.23
+        env:
+          POSTGRES_DB: filedrop
+          POSTGRES_PASSWORD: filedrop
+          POSTGRES_USER: filedrop
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U filedrop -d filedrop"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Check out repository
@@ -32,6 +50,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Validate database schema
+        run: pnpm db:validate
+
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+
+      - name: Apply database migrations
+        run: pnpm db:migrate:deploy
+
       - name: Check formatting
         run: pnpm format:check
 
@@ -41,8 +68,11 @@ jobs:
       - name: Type-check
         run: pnpm typecheck
 
-      - name: Test
+      - name: Run unit tests
         run: pnpm test
+
+      - name: Run database integration tests
+        run: pnpm test:integration
 
       - name: Build
         run: pnpm build

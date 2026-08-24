@@ -36,6 +36,43 @@ Route handlers must not contain Prisma queries or R2 SDK calls directly. They
 validate HTTP input, invoke an application use case, and translate its result to
 an HTTP response.
 
+## Persistence boundary
+
+```text
+File use case
+    │
+    ▼
+FileRepository interface       domain-friendly numbers and lifecycle values
+    │
+    ▼
+PrismaFileRepository           maps number ↔ PostgreSQL bigint
+    │
+    ▼
+PostgreSQL                     constraints, indexes, durable metadata
+```
+
+The initial `files` table stores identifiers, a SHA-256 share-token hash, the R2
+object key, user-visible metadata, lifecycle timestamps, and download counters.
+The raw share token and file bytes are never stored in PostgreSQL.
+
+The lifecycle begins in `PENDING` while a client uploads directly to R2. A later
+upload-completion use case moves it to `READY`. Expiry and physical deletion are
+separate states so a scheduled cleanup can safely retry object deletion:
+
+```text
+PENDING ──> READY ──> EXPIRED ──> DELETING ──> DELETED
+    └──────────────> FAILED
+```
+
+The `(status, expires_at)` index supports cleanup scans. PostgreSQL check
+constraints independently enforce the 3 GB limit, non-negative statistics, and
+the SHA-256 token-hash format.
+
+Server environment variables are parsed once when each Next.js Node server
+instance starts. Invalid application or database URLs prevent the instance from
+accepting requests; optional secret groups are validated as soon as they are
+configured.
+
 ## Confirmed MVP constraints
 
 - Only the owner can upload.

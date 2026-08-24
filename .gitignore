@@ -9,6 +9,9 @@
 # test output
 /coverage
 
+# generated database client
+/src/generated/prisma
+
 # local environment files
 .env
 .env.local

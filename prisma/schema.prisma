@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum FileStatus {
+  PENDING
+  READY
+  FAILED
+  EXPIRED
+  DELETING
+  DELETED
+}
+
+model File {
+  id               String     @id @default(uuid()) @db.Uuid
+  shareTokenHash   String     @unique @map("share_token_hash") @db.Char(64)
+  objectKey        String     @unique @map("object_key") @db.VarChar(1024)
+  originalName     String     @map("original_name") @db.VarChar(255)
+  contentType      String     @map("content_type") @db.VarChar(255)
+  sizeBytes        BigInt     @map("size_bytes")
+  status           FileStatus @default(PENDING)
+  expiresAt        DateTime   @map("expires_at") @db.Timestamptz(3)
+  uploadedAt       DateTime?  @map("uploaded_at") @db.Timestamptz(3)
+  downloadCount    Int        @default(0) @map("download_count")
+  lastDownloadedAt DateTime?  @map("last_downloaded_at") @db.Timestamptz(3)
+  deletedAt        DateTime?  @map("deleted_at") @db.Timestamptz(3)
+  createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([status, expiresAt])
+  @@map("files")
+}
