@@ -5,9 +5,9 @@ engineering portfolio project. File metadata lives in PostgreSQL; file bytes liv
 in private S3-compatible object storage.
 
 The application is under active development. The current repository contains the
-Day 3 secure upload-initialization core, not a usable upload service yet. The
-public upload route remains intentionally disabled until owner authentication and
-the Cloudflare R2 adapter are ready.
+Day 4 Cloudflare R2 upload adapter and secure upload-initialization core, not a
+usable upload service yet. The public upload route remains intentionally disabled
+until owner authentication is ready.
 
 ## Requirements
 
@@ -101,6 +101,8 @@ and credential review checklist.
 - [ADR 0003: Owner-only uploads](docs/decisions/0003-owner-only-upload.md)
 - [ADR 0004: PostgreSQL file metadata](docs/decisions/0004-postgresql-file-metadata.md)
 - [ADR 0005: Secure upload initialization](docs/decisions/0005-secure-upload-initialization.md)
+- [ADR 0006: Cloudflare R2 presigned upload adapter](docs/decisions/0006-cloudflare-r2-upload-adapter.md)
+- [Cloudflare R2 setup](docs/deployment/cloudflare-r2.md)
 
 ## Confirmed MVP policy
 
@@ -114,7 +116,7 @@ and credential review checklist.
 ## Delivery plan
 
 The two-week implementation schedule runs from 2026-08-24 through 2026-09-06.
-Day 3 establishes strict upload metadata validation, opaque object keys, hashed
-256-bit share tokens, a provider-neutral upload URL port, and a tested
-upload-initialization use case. R2 integration and the authenticated HTTP route
-remain later milestones.
+Day 4 implements the provider-neutral upload port with Cloudflare R2, signs the
+required content type, validates storage configuration, and documents private
+bucket setup. Owner authentication, upload completion verification, and the HTTP
+route remain later milestones.

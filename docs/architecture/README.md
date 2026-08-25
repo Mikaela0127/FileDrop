@@ -52,8 +52,35 @@ InitializeUpload use case
 The 256-bit raw share token is returned once and is never persisted. Object keys
 contain an opaque UUID rather than the user-controlled file name. Signed upload
 URLs live for at most 15 minutes and are never stored. The Next.js route is not
-published until both owner authentication and the R2 adapter can be composed at
-the delivery boundary.
+published until owner authentication can be composed at the delivery boundary.
+
+## R2 upload adapter
+
+```text
+InitializeUpload
+      │ UploadUrlProvider port
+      ▼
+CloudflareR2UploadUrlProvider
+      │ AWS Signature Version 4 (local computation; no R2 request)
+      ▼
+15-minute HTTPS PUT URL + required Content-Type header
+```
+
+The adapter uses the official AWS SDK against Cloudflare's S3-compatible
+endpoint with region `auto`. Its server-only composition factory receives the
+four validated R2 environment variables. The bucket name and opaque object key
+scope each `PutObject` command, while `Content-Type` is included in the signed
+headers so the browser must send the exact value that the application approved.
+
+`Content-Length` is deliberately not signed because browsers control that
+header. Consequently, initialization validates the claimed size but does not
+prove the stored object's size. A later upload-completion use case must call
+`HeadObject`, compare the actual byte count and content type with PostgreSQL,
+and delete or reject mismatches before changing `PENDING` to `READY`.
+
+Presigned URLs are bearer credentials. They are returned to the initiating
+browser only, never logged or persisted, and expire after 15 minutes. R2 API
+credentials remain exclusively in the server environment.
 
 ## Persistence boundary
 

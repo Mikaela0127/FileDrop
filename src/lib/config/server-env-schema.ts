@@ -28,6 +28,22 @@ const databaseUrlSchema = z
     "DATABASE_URL must use the postgres or postgresql protocol",
   );
 
+const r2AccountIdSchema = z
+  .string()
+  .regex(
+    /^[a-f0-9]{32}$/iu,
+    "R2_ACCOUNT_ID must contain exactly 32 hexadecimal characters",
+  );
+
+const r2BucketNameSchema = z
+  .string()
+  .min(3, "R2_BUCKET_NAME must contain at least 3 characters")
+  .max(63, "R2_BUCKET_NAME must contain at most 63 characters")
+  .regex(
+    /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u,
+    "R2_BUCKET_NAME may contain lowercase letters, numbers, and internal hyphens only",
+  );
+
 export const serverEnvSchema = z
   .object({
     APP_URL: appUrlSchema,
@@ -43,10 +59,10 @@ export const serverEnvSchema = z
     CRON_SECRET: optionalString(
       z.string().min(32, "CRON_SECRET must contain at least 32 characters"),
     ),
-    R2_ACCOUNT_ID: optionalString(z.string().min(1)),
+    R2_ACCOUNT_ID: optionalString(r2AccountIdSchema),
     R2_ACCESS_KEY_ID: optionalString(z.string().min(1)),
     R2_SECRET_ACCESS_KEY: optionalString(z.string().min(1)),
-    R2_BUCKET_NAME: optionalString(z.string().min(1)),
+    R2_BUCKET_NAME: optionalString(r2BucketNameSchema),
   })
   .superRefine((environment, context) => {
     const r2Keys = [

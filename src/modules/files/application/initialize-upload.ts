@@ -90,15 +90,13 @@ export function createInitializeUpload({
       now.getTime() + metadata.expirationSeconds * 1_000,
     );
 
-    const upload = validateUploadAuthorization(
-      await uploadUrlProvider.createUploadUrl({
-        objectKey,
-        contentType: metadata.contentType,
-        sizeBytes: metadata.sizeBytes,
-        expiresInSeconds: UPLOAD_URL_TTL_SECONDS,
-      }),
-      now,
-    );
+    const uploadAuthorization = await uploadUrlProvider.createUploadUrl({
+      objectKey,
+      contentType: metadata.contentType,
+      sizeBytes: metadata.sizeBytes,
+      expiresInSeconds: UPLOAD_URL_TTL_SECONDS,
+    });
+    const upload = validateUploadAuthorization(uploadAuthorization, clock());
 
     const file = await fileRepository.create({
       shareTokenHash,

@@ -33,7 +33,7 @@ function createFileRecord(input: CreateFileRecordInput): FileRecord {
   };
 }
 
-function createHarness() {
+function createHarness(clock: () => Date = () => now) {
   const persistedInputs: CreateFileRecordInput[] = [];
   const uploadInputs: CreateUploadUrlInput[] = [];
   const fileRepository: FileRepository = {
@@ -57,7 +57,7 @@ function createHarness() {
   const initializeUpload = createInitializeUpload({
     fileRepository,
     uploadUrlProvider,
-    clock: () => now,
+    clock,
     createObjectKey: () => objectKey,
     createShareToken: () => rawShareToken,
   });
@@ -111,6 +111,29 @@ describe("initializeUpload", () => {
       fileExpiresAt: new Date("2026-08-25T08:00:00.000Z"),
       upload: { method: "PUT" },
     });
+  });
+
+  it("validates URL expiry against the time at which signing finishes", async () => {
+    const signingFinishedAt = new Date(now.getTime() + 250);
+    const clockValues = [now, signingFinishedAt];
+    const harness = createHarness(
+      () => clockValues.shift() ?? signingFinishedAt,
+    );
+    vi.mocked(harness.uploadUrlProvider.createUploadUrl).mockResolvedValueOnce({
+      url: "https://storage.example.test/upload?signature=redacted",
+      method: "PUT",
+      headers: { "content-type": "application/pdf" },
+      expiresAt: new Date(signingFinishedAt.getTime() + 15 * 60 * 1_000),
+    });
+
+    await expect(
+      harness.initializeUpload({
+        originalName: "private-plan.pdf",
+        contentType: "application/pdf",
+        sizeBytes: 42,
+        expirationSeconds: 86_400,
+      }),
+    ).resolves.toMatchObject({ upload: { method: "PUT" } });
   });
 
   it("does not contact infrastructure when metadata is invalid", async () => {
