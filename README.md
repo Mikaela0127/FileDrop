@@ -5,9 +5,10 @@ engineering portfolio project. File metadata lives in PostgreSQL; file bytes liv
 in private S3-compatible object storage.
 
 The application is under active development. The current repository contains the
-Day 4 Cloudflare R2 upload adapter and secure upload-initialization core, not a
-usable upload service yet. The public upload route remains intentionally disabled
-until owner authentication is ready.
+Day 5 owner-authentication boundary, Cloudflare R2 upload adapter, and secure
+upload-initialization core. It is not a usable upload service yet: the upload
+route remains intentionally unpublished until completion verification can stop
+unverified objects from becoming downloadable.
 
 ## Requirements
 
@@ -36,6 +37,42 @@ pnpm dev
 ```
 
 Open <http://localhost:3000>.
+
+### Configure owner authentication
+
+Choose a unique passphrase of at least 12 UTF-8 bytes. The following zsh/bash
+commands read it without displaying it or putting it in shell history, then
+print only its scrypt hash:
+
+```bash
+read -rs "FILEDROP_OWNER_PASSWORD?Owner passphrase: "
+printf '\n'
+printf '%s' "$FILEDROP_OWNER_PASSWORD" | pnpm auth:hash-password
+unset FILEDROP_OWNER_PASSWORD
+```
+
+Copy the printed hash to `UPLOAD_PASSWORD_HASH` in the ignored `.env` file. Then
+generate an independent session-signing secret and copy it to `SESSION_SECRET`:
+
+```bash
+openssl rand -hex 32
+```
+
+Never place the passphrase, hash, or session secret in a committed file, command
+argument, issue, screenshot, or chat. Configure `SESSION_SECRET` and
+`UPLOAD_PASSWORD_HASH` together. Restart `pnpm dev`, then open
+<http://localhost:3000/login>. Production must set `APP_URL` to the exact HTTPS
+application origin so the session cookie receives its `Secure` attribute.
+
+The Day 5 authentication endpoints are:
+
+- `POST /api/auth/login` — verify the passphrase and create an eight-hour owner
+  session.
+- `POST /api/auth/logout` — clear the owner session.
+- `GET /api/auth/session` — report whether the signed cookie is valid.
+
+They intentionally return no session token in JSON. The browser stores the token
+only in an `HttpOnly`, `SameSite=Strict` cookie.
 
 The committed Compose configuration exposes PostgreSQL only on
 `127.0.0.1:5432`. Its `filedrop` password is for local development only and must
@@ -102,7 +139,9 @@ and credential review checklist.
 - [ADR 0004: PostgreSQL file metadata](docs/decisions/0004-postgresql-file-metadata.md)
 - [ADR 0005: Secure upload initialization](docs/decisions/0005-secure-upload-initialization.md)
 - [ADR 0006: Cloudflare R2 presigned upload adapter](docs/decisions/0006-cloudflare-r2-upload-adapter.md)
+- [ADR 0007: Owner passphrase and signed sessions](docs/decisions/0007-owner-passphrase-session.md)
 - [Cloudflare R2 setup](docs/deployment/cloudflare-r2.md)
+- [Owner authentication setup](docs/deployment/owner-authentication.md)
 
 ## Confirmed MVP policy
 
@@ -116,7 +155,7 @@ and credential review checklist.
 ## Delivery plan
 
 The two-week implementation schedule runs from 2026-08-24 through 2026-09-06.
-Day 4 implements the provider-neutral upload port with Cloudflare R2, signs the
-required content type, validates storage configuration, and documents private
-bucket setup. Owner authentication, upload completion verification, and the HTTP
-route remain later milestones.
+Day 5 implements owner passphrase verification, signed session cookies,
+same-origin mutation checks, authentication endpoints, and a responsive login
+page. Day 6 will add upload completion verification and expose the first upload
+flow only after both authentication and storage verification can guard it.

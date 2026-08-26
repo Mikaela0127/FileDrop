@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isOwnerPasswordHash } from "../security/owner-password-hash-format";
+
 const optionalString = (schema: z.ZodString) =>
   z.preprocess(
     (value) => (value === "" ? undefined : value),
@@ -54,7 +56,10 @@ export const serverEnvSchema = z
     UPLOAD_PASSWORD_HASH: optionalString(
       z
         .string()
-        .min(20, "UPLOAD_PASSWORD_HASH does not look like a password hash"),
+        .refine(
+          isOwnerPasswordHash,
+          "UPLOAD_PASSWORD_HASH must be a FileDrop scrypt hash",
+        ),
     ),
     CRON_SECRET: optionalString(
       z.string().min(32, "CRON_SECRET must contain at least 32 characters"),
@@ -65,6 +70,21 @@ export const serverEnvSchema = z
     R2_BUCKET_NAME: optionalString(r2BucketNameSchema),
   })
   .superRefine((environment, context) => {
+    const authKeys = ["SESSION_SECRET", "UPLOAD_PASSWORD_HASH"] as const;
+    const configuredAuthKeys = authKeys.filter((key) => environment[key]);
+
+    if (
+      configuredAuthKeys.length > 0 &&
+      configuredAuthKeys.length < authKeys.length
+    ) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "Owner authentication must provide SESSION_SECRET and UPLOAD_PASSWORD_HASH together",
+        path: ["SESSION_SECRET"],
+      });
+    }
+
     const r2Keys = [
       "R2_ACCOUNT_ID",
       "R2_ACCESS_KEY_ID",

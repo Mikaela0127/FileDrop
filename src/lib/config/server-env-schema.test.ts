@@ -14,6 +14,8 @@ const validR2Environment = {
   R2_BUCKET_NAME: "filedrop-test",
 };
 
+const validOwnerPasswordHash = `$scrypt$ln=16,r=8,p=1$${Buffer.alloc(16, 1).toString("base64url")}$${Buffer.alloc(32, 2).toString("base64url")}`;
+
 describe("server environment", () => {
   it("accepts the minimum local development configuration", () => {
     expect(parseServerEnv(validEnvironment)).toMatchObject(validEnvironment);
@@ -44,6 +46,37 @@ describe("server environment", () => {
         SESSION_SECRET: "too-short",
       }),
     ).toThrow("SESSION_SECRET must contain at least 32 characters");
+  });
+
+  it("requires owner authentication variables as one complete group", () => {
+    expect(() =>
+      parseServerEnv({
+        ...validEnvironment,
+        SESSION_SECRET: "s".repeat(32),
+      }),
+    ).toThrow(
+      "Owner authentication must provide SESSION_SECRET and UPLOAD_PASSWORD_HASH together",
+    );
+  });
+
+  it("accepts a complete owner authentication configuration", () => {
+    expect(
+      parseServerEnv({
+        ...validEnvironment,
+        SESSION_SECRET: "s".repeat(32),
+        UPLOAD_PASSWORD_HASH: validOwnerPasswordHash,
+      }),
+    ).toMatchObject({ UPLOAD_PASSWORD_HASH: validOwnerPasswordHash });
+  });
+
+  it("rejects unsupported owner password hashes", () => {
+    expect(() =>
+      parseServerEnv({
+        ...validEnvironment,
+        SESSION_SECRET: "s".repeat(32),
+        UPLOAD_PASSWORD_HASH: "$2b$12$unsupported",
+      }),
+    ).toThrow("UPLOAD_PASSWORD_HASH must be a FileDrop scrypt hash");
   });
 
   it("requires R2 credentials to be configured as one complete group", () => {

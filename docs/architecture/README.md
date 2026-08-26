@@ -8,9 +8,9 @@ separate modules.
 
 ```text
 Control path
-Browser ──> Next.js route handlers ──> PostgreSQL
-                    │
-                    └── creates short-lived presigned URLs
+Browser ──> owner authentication ──> Next.js route handlers ──> PostgreSQL
+                                        │
+                                        └── creates short-lived presigned URLs
 
 File path
 Browser ────────────────────────────> private Cloudflare R2 bucket
@@ -26,6 +26,9 @@ file bytes only; PostgreSQL stores metadata and lifecycle state only.
 
 ```text
 src/app                         Next.js route composition and UI delivery
+src/modules/auth/application    Provider-neutral owner auth orchestration
+src/modules/auth/delivery       Login/logout/session HTTP boundary
+src/modules/auth/infrastructure scrypt and JOSE adapters
 src/modules/files/domain        File policies and lifecycle rules
 src/modules/files/application   Upload, download, and cleanup use cases
 src/modules/files/delivery      Provider-neutral HTTP contracts
@@ -36,6 +39,38 @@ src/lib                         Shared configuration and technical utilities
 Route handlers must not contain Prisma queries or R2 SDK calls directly. They
 validate HTTP input, invoke an application use case, and translate its result to
 an HTTP response.
+
+## Owner authentication boundary
+
+```text
+Untrusted login JSON (maximum 2 KiB)
+        │ strict shape + exact Origin validation
+        ▼
+OwnerAuthentication application service
+        ├──> OwnerPasswordVerifier ──> bounded scrypt comparison
+        └──> OwnerSessionManager ────> signed eight-hour JWT
+                                          │
+                                          ▼
+                              HttpOnly + SameSite=Strict cookie
+```
+
+The deployment environment stores one scrypt password hash and one independent
+session-signing secret. The passphrase and raw session token are never persisted
+in PostgreSQL or returned in JSON. JWT payloads contain only fixed owner claims,
+a random session identifier, and standard time claims; they contain no file or
+personal metadata. HTTPS deployments also set `Secure` on the cookie.
+
+Login and logout require an exact same-origin `Origin` header and reject an
+explicitly cross-site Fetch Metadata header. Authentication errors are generic.
+Each Node process permits at most two concurrent scrypt verifications so a burst
+cannot allocate unbounded KDF memory. This is resource back-pressure, not a
+distributed login rate limiter; rate limiting remains a later hardening task.
+
+The application depends on `OwnerPasswordVerifier` and `OwnerSessionManager`
+interfaces, rather than directly on scrypt or JWT code. A future account system
+can replace those adapters without changing the file use cases. The signed
+session proves authentication only; every upload route must still perform an
+authorization check immediately before creating storage access.
 
 ## Upload initialization boundary
 
@@ -51,8 +86,9 @@ InitializeUpload use case
 
 The 256-bit raw share token is returned once and is never persisted. Object keys
 contain an opaque UUID rather than the user-controlled file name. Signed upload
-URLs live for at most 15 minutes and are never stored. The Next.js route is not
-published until owner authentication can be composed at the delivery boundary.
+URLs live for at most 15 minutes and are never stored. The Next.js upload route
+is not published until the upload-completion boundary can verify the object that
+R2 actually received.
 
 ## R2 upload adapter
 

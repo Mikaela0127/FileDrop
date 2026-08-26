@@ -12,7 +12,8 @@ upload during the initial test period.
 ## Decision
 
 Protect upload pages and APIs with an owner session backed by a hashed
-passphrase. Centralize upload authorization behind an application boundary.
+passphrase. Centralize upload authorization behind an application boundary. The
+specific passphrase and session implementation is recorded in ADR 0007.
 
 ## Consequences
 
