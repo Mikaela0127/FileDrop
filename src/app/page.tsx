@@ -32,9 +32,15 @@ export default function Home() {
               Private file sharing, built to expire.
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
-              FileDrop will transfer files through private object storage while
+              FileDrop transfers files through private object storage while
               keeping ownership, metadata, and expiry rules under your control.
             </p>
+            <a
+              className="mt-7 inline-flex rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              href="/upload"
+            >
+              Open owner upload
+            </a>
           </div>
 
           <dl className="grid grid-cols-2 gap-3">

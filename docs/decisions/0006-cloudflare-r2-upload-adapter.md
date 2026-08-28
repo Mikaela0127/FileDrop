@@ -19,6 +19,8 @@ uploads also cannot safely receive permanent R2 credentials.
 - Presign a `PutObject` command for at most 15 minutes.
 - Sign `Content-Type` explicitly and return the exact required header to the
   browser.
+- Sign `If-None-Match: *` so a still-valid PUT URL cannot overwrite an object
+  after completion verification.
 - Do not sign `Content-Length`, which browser code cannot set reliably.
 - Restrict object keys to FileDrop's opaque `objects/<UUID>` namespace.
 - Validate the R2 account ID, bucket name, complete credential group, file size,

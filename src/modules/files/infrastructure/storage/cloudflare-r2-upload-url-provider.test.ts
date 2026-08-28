@@ -78,17 +78,21 @@ describe("CloudflareR2UploadUrlProvider", () => {
       Bucket: "filedrop-test",
       Key: objectKey,
       ContentType: "application/pdf",
+      IfNoneMatch: "*",
     });
     expect(command.input).not.toHaveProperty("ContentLength");
     expect(options).toEqual({
       expiresIn: 900,
       signingDate: now,
-      signableHeaders: new Set(["content-type"]),
+      signableHeaders: new Set(["content-type", "if-none-match"]),
     });
     expect(authorization).toEqual({
       url: "https://storage.example.test/upload?signature=redacted",
       method: "PUT",
-      headers: { "content-type": "application/pdf" },
+      headers: {
+        "content-type": "application/pdf",
+        "if-none-match": "*",
+      },
       expiresAt: new Date("2026-08-25T08:15:00.000Z"),
     });
   });
@@ -109,6 +113,9 @@ describe("CloudflareR2UploadUrlProvider", () => {
     expect(url.searchParams.get("X-Amz-Expires")).toBe("900");
     expect(url.searchParams.get("X-Amz-SignedHeaders")).toContain(
       "content-type",
+    );
+    expect(url.searchParams.get("X-Amz-SignedHeaders")).toContain(
+      "if-none-match",
     );
     expect(authorization.url).not.toContain(configuration.secretAccessKey);
   });

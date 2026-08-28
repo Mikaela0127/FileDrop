@@ -48,6 +48,12 @@ export class PrismaFileRepository implements FileRepository {
     return toFileRecord(file);
   }
 
+  async findById(id: string): Promise<FileRecord | null> {
+    const file = await this.client.file.findUnique({ where: { id } });
+
+    return file ? toFileRecord(file) : null;
+  }
+
   async findByShareTokenHash(
     shareTokenHash: string,
   ): Promise<FileRecord | null> {
@@ -56,5 +62,38 @@ export class PrismaFileRepository implements FileRepository {
     });
 
     return file ? toFileRecord(file) : null;
+  }
+
+  markExpiredIfPending(id: string): Promise<FileRecord | null> {
+    return this.transitionPendingFile(id, { status: "EXPIRED" });
+  }
+
+  markFailedIfPending(id: string): Promise<FileRecord | null> {
+    return this.transitionPendingFile(id, { status: "FAILED" });
+  }
+
+  markReadyIfPending(id: string, uploadedAt: Date): Promise<FileRecord | null> {
+    return this.transitionPendingFile(id, {
+      status: "READY",
+      uploadedAt,
+    });
+  }
+
+  private async transitionPendingFile(
+    id: string,
+    data:
+      { status: "EXPIRED" | "FAILED" } | { status: "READY"; uploadedAt: Date },
+  ): Promise<FileRecord | null> {
+    const update = await this.client.file.updateMany({
+      where: { id, status: "PENDING" },
+      data,
+    });
+
+    if (update.count !== 1) {
+      return null;
+    }
+
+    const file = await this.client.file.findUniqueOrThrow({ where: { id } });
+    return toFileRecord(file);
   }
 }

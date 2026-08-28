@@ -13,9 +13,8 @@ import {
 } from "../../application/ports/upload-url-provider";
 import { isAllowedFileSize } from "../../domain/file-policy";
 import type { R2StorageConfig } from "../../../../lib/config/r2-storage-config";
+import { isObjectKey } from "../../domain/object-key";
 
-const OBJECT_KEY =
-  /^objects\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const UNSAFE_HEADER_CHARACTER = /[\u0000-\u001f\u007f]/u;
 
 interface UploadPresigningOptions {
@@ -53,7 +52,7 @@ const defaultPresignUpload: PresignUpload = (client, command, options) =>
 
 function validateUploadRequest(input: CreateUploadUrlInput): void {
   if (
-    !OBJECT_KEY.test(input.objectKey) ||
+    !isObjectKey(input.objectKey) ||
     input.contentType.length === 0 ||
     input.contentType.length > 255 ||
     UNSAFE_HEADER_CHARACTER.test(input.contentType) ||
@@ -101,17 +100,21 @@ export class CloudflareR2UploadUrlProvider implements UploadUrlProvider {
       Bucket: this.bucketName,
       Key: input.objectKey,
       ContentType: input.contentType,
+      IfNoneMatch: "*",
     });
     const url = await this.presignUpload(this.client, command, {
       expiresIn: input.expiresInSeconds,
       signingDate,
-      signableHeaders: new Set(["content-type"]),
+      signableHeaders: new Set(["content-type", "if-none-match"]),
     });
 
     return {
       url,
       method: "PUT",
-      headers: { "content-type": input.contentType },
+      headers: {
+        "content-type": input.contentType,
+        "if-none-match": "*",
+      },
       expiresAt: new Date(
         signingDate.getTime() + input.expiresInSeconds * 1_000,
       ),

@@ -4,11 +4,10 @@ FileDrop is a private, expiring file-transfer service built as a full-stack
 engineering portfolio project. File metadata lives in PostgreSQL; file bytes live
 in private S3-compatible object storage.
 
-The application is under active development. The current repository contains the
-Day 5 owner-authentication boundary, Cloudflare R2 upload adapter, and secure
-upload-initialization core. It is not a usable upload service yet: the upload
-route remains intentionally unpublished until completion verification can stop
-unverified objects from becoming downloadable.
+The application is under active development. Day 6 provides the first complete
+owner upload pipeline: authenticate, authorize a direct browser-to-R2 PUT,
+inspect the stored object, and atomically mark matching metadata `READY`. Public
+download and scheduled expiry cleanup are intentionally still unavailable.
 
 ## Requirements
 
@@ -73,6 +72,28 @@ The Day 5 authentication endpoints are:
 
 They intentionally return no session token in JSON. The browser stores the token
 only in an `HttpOnly`, `SameSite=Strict` cookie.
+
+### Configure Cloudflare R2 and upload
+
+Add the four private R2 values described in
+[the R2 setup guide](docs/deployment/cloudflare-r2.md) to the ignored `.env`
+file, configure bucket CORS, restart the development server, sign in, and open
+<http://localhost:3000/upload>.
+
+The Day 6 upload endpoints are:
+
+- `POST /api/uploads/initialize` — authenticate the owner, validate at most 4
+  KiB of strict metadata JSON, create a `PENDING` row, and return a 15-minute R2
+  PUT URL.
+- `POST /api/uploads/:fileId/complete` — authenticate again, inspect R2 with
+  `HeadObject`, compare actual size and content type, then conditionally move
+  the row to `READY`.
+
+The browser sends file bytes directly to R2, never through Next.js or
+PostgreSQL. The completion endpoint is safe to retry after success. A missing
+object remains `PENDING`; an expired or mismatched object is rejected and
+best-effort deleted. Day 6 reserves the generated `/d/<share-token>` path, but
+the link will not download until the public download milestone is implemented.
 
 The committed Compose configuration exposes PostgreSQL only on
 `127.0.0.1:5432`. Its `filedrop` password is for local development only and must
@@ -140,6 +161,7 @@ and credential review checklist.
 - [ADR 0005: Secure upload initialization](docs/decisions/0005-secure-upload-initialization.md)
 - [ADR 0006: Cloudflare R2 presigned upload adapter](docs/decisions/0006-cloudflare-r2-upload-adapter.md)
 - [ADR 0007: Owner passphrase and signed sessions](docs/decisions/0007-owner-passphrase-session.md)
+- [ADR 0008: Verify stored objects before readiness](docs/decisions/0008-verified-upload-completion.md)
 - [Cloudflare R2 setup](docs/deployment/cloudflare-r2.md)
 - [Owner authentication setup](docs/deployment/owner-authentication.md)
 
@@ -155,7 +177,6 @@ and credential review checklist.
 ## Delivery plan
 
 The two-week implementation schedule runs from 2026-08-24 through 2026-09-06.
-Day 5 implements owner passphrase verification, signed session cookies,
-same-origin mutation checks, authentication endpoints, and a responsive login
-page. Day 6 will add upload completion verification and expose the first upload
-flow only after both authentication and storage verification can guard it.
+Day 6 implements the authenticated direct-upload page and both upload API
+boundaries. PostgreSQL lifecycle transitions and R2 metadata verification now
+guard `READY`; Day 7 can build public download resolution on that trusted state.

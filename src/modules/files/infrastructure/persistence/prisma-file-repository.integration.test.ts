@@ -73,4 +73,70 @@ describe("PrismaFileRepository", () => {
       }),
     ).rejects.toThrow();
   });
+
+  it("atomically marks only a pending upload ready", async () => {
+    const shareTokenHash = createHash("sha256")
+      .update(randomUUID())
+      .digest("hex");
+    const uploadedAt = new Date();
+    const createdFile = await repository.create({
+      shareTokenHash,
+      objectKey: `objects/${randomUUID()}`,
+      originalName: "architecture.pdf",
+      contentType: "application/pdf",
+      sizeBytes: 42,
+      expiresAt: new Date(Date.now() + 86_400_000),
+    });
+    createdFileIds.push(createdFile.id);
+
+    const readyFile = await repository.markReadyIfPending(
+      createdFile.id,
+      uploadedAt,
+    );
+    const secondTransition = await repository.markFailedIfPending(
+      createdFile.id,
+    );
+    const storedFile = await repository.findById(createdFile.id);
+
+    expect(readyFile).toMatchObject({
+      id: createdFile.id,
+      status: "READY",
+      uploadedAt,
+    });
+    expect(secondTransition).toBeNull();
+    expect(storedFile).toMatchObject({
+      id: createdFile.id,
+      status: "READY",
+      uploadedAt,
+    });
+  });
+
+  it.each(["FAILED", "EXPIRED"] as const)(
+    "moves a pending upload to %s without an uploaded timestamp",
+    async (targetStatus) => {
+      const shareTokenHash = createHash("sha256")
+        .update(randomUUID())
+        .digest("hex");
+      const createdFile = await repository.create({
+        shareTokenHash,
+        objectKey: `objects/${randomUUID()}`,
+        originalName: "architecture.pdf",
+        contentType: "application/pdf",
+        sizeBytes: 42,
+        expiresAt: new Date(Date.now() + 86_400_000),
+      });
+      createdFileIds.push(createdFile.id);
+
+      const transitionedFile =
+        targetStatus === "FAILED"
+          ? await repository.markFailedIfPending(createdFile.id)
+          : await repository.markExpiredIfPending(createdFile.id);
+
+      expect(transitionedFile).toMatchObject({
+        id: createdFile.id,
+        status: targetStatus,
+        uploadedAt: null,
+      });
+    },
+  );
 });

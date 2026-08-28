@@ -9,8 +9,9 @@ separate modules.
 ```text
 Control path
 Browser ──> owner authentication ──> Next.js route handlers ──> PostgreSQL
-                                        │
-                                        └── creates short-lived presigned URLs
+                                        │                         ▲
+                                        ├── creates presigned URL │
+                                        └── inspects R2 metadata ─┘
 
 File path
 Browser ────────────────────────────> private Cloudflare R2 bucket
@@ -72,23 +73,44 @@ can replace those adapters without changing the file use cases. The signed
 session proves authentication only; every upload route must still perform an
 authorization check immediately before creating storage access.
 
-## Upload initialization boundary
+## Verified upload boundary
 
 ```text
-Untrusted HTTP body
-        │ strict Zod shape validation
-        ▼
-InitializeUpload use case
-        │ domain metadata policy
-        ├──> UploadUrlProvider ──> short-lived HTTPS PUT authorization
-        └──> FileRepository ─────> PENDING metadata + SHA-256 token hash
+1. Authenticated metadata request (maximum 4 KiB)
+   Browser ──> InitializeUpload
+                 ├──> UploadUrlProvider ──> 15-minute HTTPS PUT authorization
+                 └──> FileRepository ─────> PENDING row + SHA-256 token hash
+
+2. Direct file path
+   Browser ───────────────────────────────> private R2 object
+
+3. Authenticated completion request
+   Browser ──> CompleteUpload
+                 ├──> ObjectStore ────────> HeadObject actual metadata
+                 └──> FileRepository ─────> conditional PENDING → READY
 ```
 
 The 256-bit raw share token is returned once and is never persisted. Object keys
 contain an opaque UUID rather than the user-controlled file name. Signed upload
-URLs live for at most 15 minutes and are never stored. The Next.js upload route
-is not published until the upload-completion boundary can verify the object that
-R2 actually received.
+URLs live for at most 15 minutes and are never stored. Both mutation endpoints
+repeat exact-origin and owner-session authorization checks; the `/upload` page's
+session check is only a user-interface convenience.
+
+The application never trusts the browser's successful PUT response as proof.
+Completion reads `Content-Length` and `Content-Type` from R2 and compares them
+with the approved PostgreSQL record. Only an exact match can use the conditional
+repository transition from `PENDING` to `READY`. Repeated completion of an
+already-ready file is idempotent. Concurrent transitions cannot overwrite a
+terminal state.
+
+The presigned PUT also requires `If-None-Match: *`. R2 accepts a write only when
+the opaque key does not already exist, so the same 15-minute capability cannot
+overwrite verified bytes after the row becomes `READY`.
+
+If R2 does not yet expose the object, the row stays `PENDING` so completion can
+be retried. A mismatch becomes `FAILED`; an upload completed after its file
+expiry becomes `EXPIRED`. Those rejected objects are deleted on a best-effort
+basis. A later cleanup worker must retry any failed physical deletion.
 
 ## R2 upload adapter
 
@@ -107,12 +129,13 @@ endpoint with region `auto`. Its server-only composition factory receives the
 four validated R2 environment variables. The bucket name and opaque object key
 scope each `PutObject` command, while `Content-Type` is included in the signed
 headers so the browser must send the exact value that the application approved.
+`If-None-Match: *` is signed as well, making each opaque key single-write.
 
 `Content-Length` is deliberately not signed because browsers control that
-header. Consequently, initialization validates the claimed size but does not
-prove the stored object's size. A later upload-completion use case must call
-`HeadObject`, compare the actual byte count and content type with PostgreSQL,
-and delete or reject mismatches before changing `PENDING` to `READY`.
+header. Consequently, initialization validates the claimed size while the
+completion use case independently proves the stored byte count with
+`HeadObject`. The R2 object adapter also supports scoped deletion of rejected
+opaque keys.
 
 Presigned URLs are bearer credentials. They are returned to the initiating
 browser only, never logged or persisted, and expire after 15 minutes. R2 API
@@ -137,14 +160,20 @@ The initial `files` table stores identifiers, a SHA-256 share-token hash, the R2
 object key, user-visible metadata, lifecycle timestamps, and download counters.
 The raw share token and file bytes are never stored in PostgreSQL.
 
-The lifecycle begins in `PENDING` while a client uploads directly to R2. A later
-upload-completion use case moves it to `READY`. Expiry and physical deletion are
-separate states so a scheduled cleanup can safely retry object deletion:
+The lifecycle begins in `PENDING` while a client uploads directly to R2. Verified
+completion moves it to `READY`. Expiry and physical deletion are separate states
+so a scheduled cleanup can safely retry object deletion:
 
 ```text
 PENDING ──> READY ──> EXPIRED ──> DELETING ──> DELETED
-    └──────────────> FAILED
+    ├──────────────> FAILED
+    └──────────────> EXPIRED
 ```
+
+The Day 6 repository methods implement these initial transitions with an
+`UPDATE ... WHERE status = PENDING` condition. This is a compare-and-set
+boundary: a delayed or duplicated request cannot change a file after another
+request has already moved it out of `PENDING`.
 
 The `(status, expires_at)` index supports cleanup scans. PostgreSQL check
 constraints independently enforce the 3 GB limit, non-negative statistics, and

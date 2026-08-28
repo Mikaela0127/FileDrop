@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { isTrustedMutationOrigin } from "../../../../lib/http/same-origin";
 import {
   InvalidOwnerCredentialsError,
   OwnerAuthenticationBusyError,
@@ -34,24 +35,6 @@ function jsonResponse(body: unknown, status = 200): NextResponse {
 
 function errorResponse(code: string, status: number): NextResponse {
   return jsonResponse({ error: { code } }, status);
-}
-
-function isTrustedMutationOrigin(
-  request: NextRequest,
-  expectedOrigin: string,
-): boolean {
-  const originHeader = request.headers.get("origin");
-  const fetchSite = request.headers.get("sec-fetch-site");
-
-  if (!originHeader || (fetchSite && fetchSite !== "same-origin")) {
-    return false;
-  }
-
-  try {
-    return new URL(originHeader).origin === expectedOrigin;
-  } catch {
-    return false;
-  }
 }
 
 function cookieOptions(secure: boolean) {

@@ -41,7 +41,11 @@ function createHarness(clock: () => Date = () => now) {
       persistedInputs.push(input);
       return createFileRecord(input);
     }),
+    findById: vi.fn(async () => null),
     findByShareTokenHash: vi.fn(async () => null),
+    markExpiredIfPending: vi.fn(async () => null),
+    markFailedIfPending: vi.fn(async () => null),
+    markReadyIfPending: vi.fn(async () => null),
   };
   const uploadUrlProvider: UploadUrlProvider = {
     createUploadUrl: vi.fn(async (input: CreateUploadUrlInput) => {
@@ -49,7 +53,10 @@ function createHarness(clock: () => Date = () => now) {
       return {
         url: "https://storage.example.test/upload?signature=redacted",
         method: "PUT" as const,
-        headers: { "content-type": input.contentType },
+        headers: {
+          "content-type": input.contentType,
+          "if-none-match": "*",
+        },
         expiresAt: new Date(now.getTime() + 15 * 60 * 1_000),
       };
     }),
@@ -122,7 +129,10 @@ describe("initializeUpload", () => {
     vi.mocked(harness.uploadUrlProvider.createUploadUrl).mockResolvedValueOnce({
       url: "https://storage.example.test/upload?signature=redacted",
       method: "PUT",
-      headers: { "content-type": "application/pdf" },
+      headers: {
+        "content-type": "application/pdf",
+        "if-none-match": "*",
+      },
       expiresAt: new Date(signingFinishedAt.getTime() + 15 * 60 * 1_000),
     });
 

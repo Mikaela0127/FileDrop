@@ -13,5 +13,9 @@ export interface CreateFileRecordInput {
 
 export interface FileRepository {
   create(input: CreateFileRecordInput): Promise<FileRecord>;
+  findById(id: string): Promise<FileRecord | null>;
   findByShareTokenHash(shareTokenHash: string): Promise<FileRecord | null>;
+  markExpiredIfPending(id: string): Promise<FileRecord | null>;
+  markFailedIfPending(id: string): Promise<FileRecord | null>;
+  markReadyIfPending(id: string, uploadedAt: Date): Promise<FileRecord | null>;
 }
