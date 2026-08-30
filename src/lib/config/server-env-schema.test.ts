@@ -69,6 +69,22 @@ describe("server environment", () => {
     ).toMatchObject({ UPLOAD_PASSWORD_HASH: validOwnerPasswordHash });
   });
 
+  it("accepts only a sufficiently long cleanup secret", () => {
+    expect(
+      parseServerEnv({
+        ...validEnvironment,
+        CRON_SECRET: "c".repeat(32),
+      }),
+    ).toMatchObject({ CRON_SECRET: "c".repeat(32) });
+
+    expect(() =>
+      parseServerEnv({
+        ...validEnvironment,
+        CRON_SECRET: "too-short",
+      }),
+    ).toThrow("CRON_SECRET must contain at least 32 characters");
+  });
+
   it("rejects unsupported owner password hashes", () => {
     expect(() =>
       parseServerEnv({

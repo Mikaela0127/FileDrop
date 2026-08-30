@@ -138,6 +138,40 @@ boundary as upload. It deliberately uses `no-store` so an intermediary does not
 cache the temporary signed location, and `no-referrer` so the raw share path is
 not forwarded to the R2 S3 endpoint. The private bucket has no public URL.
 
+## Scheduled cleanup boundary
+
+```text
+Vercel Cron ── GET + Bearer CRON_SECRET ──> CleanupExpiredFiles
+                                                   │
+                     PostgreSQL <── expire due + claim 100-row batch
+                                                   │
+                                      EXPIRED/FAILED ──> DELETING
+                                                   │
+                                             R2 DeleteObject
+                                                   │
+                                      success ──> DELETED
+                                      failure ──> EXPIRED (retry)
+```
+
+Expiry authorization and physical deletion are deliberately separate. Public
+downloads reject `expiresAt <= now` even before the scheduled job runs. The job
+then marks due metadata, claims deletion candidates with conditional updates,
+and deletes only opaque object keys read from PostgreSQL.
+
+The `updatedAt` value written during `DELETING` is a 15-minute lease and fencing
+value. The claim uses one atomic update-and-return operation, so the worker
+receives the same lease value that it wrote. A second invocation cannot claim an
+active lease, and an old invocation cannot finalize or release a row after a
+newer worker has reclaimed it. If a process disappears, its stale lease becomes
+eligible again. R2 deletion and the database update cannot form one distributed
+transaction, so deletion is intentionally retryable; removing an already-absent
+object is treated as a safe reconciliation operation.
+
+`GET /api/cron/cleanup` uses a separate `CRON_SECRET`, compares a SHA-256 digest
+of the supplied bearer value in constant time, and emits uncached generic errors.
+The endpoint uses `GET` because Vercel Cron invokes configured paths with GET;
+possession of the secret, not the HTTP verb, is the mutation authorization.
+
 ## R2 upload adapter
 
 ```text
@@ -198,10 +232,9 @@ PENDING ──> READY ──> EXPIRED ──> DELETING ──> DELETED
     └──────────────> EXPIRED
 ```
 
-The Day 6 repository methods implement these initial transitions with an
-`UPDATE ... WHERE status = PENDING` condition. This is a compare-and-set
-boundary: a delayed or duplicated request cannot change a file after another
-request has already moved it out of `PENDING`.
+The Day 6 upload transitions and Day 8 deletion transitions use conditional
+`UPDATE` operations as compare-and-set boundaries. A delayed or duplicated
+request cannot overwrite a terminal state or a newer deletion lease.
 
 The `(status, expires_at)` index supports cleanup scans. PostgreSQL check
 constraints independently enforce the 3 GB limit, non-negative statistics, and

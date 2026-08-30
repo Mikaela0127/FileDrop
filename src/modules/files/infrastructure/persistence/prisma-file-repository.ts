@@ -7,6 +7,7 @@ import type {
   CreateFileRecordInput,
   FileRepository,
 } from "../../application/ports/file-repository";
+import type { FileCleanupRepository } from "../../application/ports/file-cleanup-repository";
 import type { FileRecord, FileStatus } from "../../domain/file-record";
 
 const FILE_STATUS_MAP: Record<PrismaFileStatus, FileStatus> = {
@@ -34,7 +35,9 @@ function toFileRecord(file: PrismaFile): FileRecord {
   };
 }
 
-export class PrismaFileRepository implements FileRepository {
+export class PrismaFileRepository
+  implements FileRepository, FileCleanupRepository
+{
   constructor(private readonly client: PrismaClient) {}
 
   async create(input: CreateFileRecordInput): Promise<FileRecord> {
@@ -77,6 +80,79 @@ export class PrismaFileRepository implements FileRepository {
       status: "READY",
       uploadedAt,
     });
+  }
+
+  async expireDueFiles(now: Date, limit: number): Promise<number> {
+    const update = await this.client.file.updateMany({
+      where: {
+        status: { in: ["PENDING", "READY"] },
+        expiresAt: { lte: now },
+      },
+      data: { status: "EXPIRED" },
+      limit,
+    });
+
+    return update.count;
+  }
+
+  async findDeletionCandidateIds(
+    staleLeaseBefore: Date,
+    limit: number,
+  ): Promise<string[]> {
+    const files = await this.client.file.findMany({
+      where: {
+        OR: [
+          { status: { in: ["EXPIRED", "FAILED"] } },
+          { status: "DELETING", updatedAt: { lte: staleLeaseBefore } },
+        ],
+      },
+      orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+      select: { id: true },
+      take: limit,
+    });
+
+    return files.map((file) => file.id);
+  }
+
+  async claimForDeletion(
+    id: string,
+    staleLeaseBefore: Date,
+    leaseAcquiredAt: Date,
+  ): Promise<FileRecord | null> {
+    const [file] = await this.client.file.updateManyAndReturn({
+      where: {
+        id,
+        OR: [
+          { status: { in: ["EXPIRED", "FAILED"] } },
+          { status: "DELETING", updatedAt: { lte: staleLeaseBefore } },
+        ],
+      },
+      data: { status: "DELETING", updatedAt: leaseAcquiredAt },
+    });
+
+    return file ? toFileRecord(file) : null;
+  }
+
+  async markDeleted(
+    id: string,
+    leaseAcquiredAt: Date,
+    deletedAt: Date,
+  ): Promise<boolean> {
+    const update = await this.client.file.updateMany({
+      where: { id, status: "DELETING", updatedAt: leaseAcquiredAt },
+      data: { status: "DELETED", deletedAt },
+    });
+
+    return update.count === 1;
+  }
+
+  async releaseDeletion(id: string, leaseAcquiredAt: Date): Promise<boolean> {
+    const update = await this.client.file.updateMany({
+      where: { id, status: "DELETING", updatedAt: leaseAcquiredAt },
+      data: { status: "EXPIRED" },
+    });
+
+    return update.count === 1;
   }
 
   private async transitionPendingFile(

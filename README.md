@@ -4,11 +4,10 @@ FileDrop is a private, expiring file-transfer service built as a full-stack
 engineering portfolio project. File metadata lives in PostgreSQL; file bytes live
 in private S3-compatible object storage.
 
-The application is under active development. Day 7 provides the first complete
+The application is under active development. Day 8 provides a complete expiring
 transfer path: the owner uploads directly to R2, FileDrop verifies the stored
-object, and an opaque public link resolves eligible files to a five-minute R2
-download authorization. Scheduled expiry cleanup is intentionally still
-unavailable.
+object, an opaque public link resolves eligible files to a five-minute R2
+download authorization, and an authenticated daily job removes expired objects.
 
 ## Requirements
 
@@ -107,6 +106,32 @@ The raw token and presigned URL are never stored. Public download responses use
 `Cache-Control: no-store` and `Referrer-Policy: no-referrer`. Treat every share
 link as a password: anyone who possesses it can download until file expiry.
 
+### Configure scheduled cleanup
+
+Generate a third independent secret for the cleanup endpoint and place it only
+in the ignored local `.env` file and the deployment provider's encrypted
+environment settings:
+
+```bash
+openssl rand -hex 32
+```
+
+The Day 8 cleanup endpoint is:
+
+- `GET /api/cron/cleanup` — require `Authorization: Bearer <CRON_SECRET>`, mark
+  due `PENDING` and `READY` rows as `EXPIRED`, claim at most 100 cleanup
+  candidates, remove their private R2 objects, and finalize them as `DELETED`.
+
+The committed `vercel.json` invokes this endpoint daily at 03:00 UTC, a schedule
+compatible with Vercel Hobby. A file becomes unavailable as soon as its database
+expiry is reached; the daily job controls only when its bytes are physically
+removed. Failed deletions return to the retry queue, while an interrupted
+`DELETING` job becomes reclaimable after a 15-minute lease.
+
+See [the scheduled cleanup deployment guide](docs/deployment/scheduled-cleanup.md)
+before enabling the production cron job. Do not reuse the owner passphrase,
+session secret, R2 key, or any real share token as `CRON_SECRET`.
+
 The committed Compose configuration exposes PostgreSQL only on
 `127.0.0.1:5432`. Its `filedrop` password is for local development only and must
 not be reused in production. The database volume survives ordinary container
@@ -175,8 +200,10 @@ and credential review checklist.
 - [ADR 0007: Owner passphrase and signed sessions](docs/decisions/0007-owner-passphrase-session.md)
 - [ADR 0008: Verify stored objects before readiness](docs/decisions/0008-verified-upload-completion.md)
 - [ADR 0009: Resolve public downloads with short-lived redirects](docs/decisions/0009-short-lived-download-redirect.md)
+- [ADR 0010: Lease-based scheduled deletion](docs/decisions/0010-lease-based-scheduled-deletion.md)
 - [Cloudflare R2 setup](docs/deployment/cloudflare-r2.md)
 - [Owner authentication setup](docs/deployment/owner-authentication.md)
+- [Scheduled cleanup setup](docs/deployment/scheduled-cleanup.md)
 
 ## Confirmed MVP policy
 
@@ -190,7 +217,7 @@ and credential review checklist.
 ## Delivery plan
 
 The two-week implementation schedule runs from 2026-08-24 through 2026-09-06.
-Day 7 implements public token resolution and short-lived direct downloads.
-PostgreSQL lifecycle state and application-level expiry now guard both storage
-write and read capabilities; Day 8 can add scheduled expiry and physical object
-deletion.
+Day 8 implements authenticated scheduled expiry, concurrency-safe cleanup
+leases, retryable R2 deletion, and durable `DELETED` metadata. Day 9 can build
+basic download statistics on top of the existing counters without changing the
+storage boundary.

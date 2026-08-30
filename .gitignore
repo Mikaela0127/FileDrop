@@ -13,9 +13,8 @@
 /src/generated/prisma
 
 # local environment files
-.env
-.env.local
-.env.*.local
+.env*
+!.env.example
 
 # deployment providers
 .vercel
