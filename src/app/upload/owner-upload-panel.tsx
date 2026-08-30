@@ -214,7 +214,7 @@ export function OwnerUploadPanel() {
         new URL(result.sharePath, window.location.origin).toString(),
       );
       setMessage(
-        "Reserved share URL copied. The public download route arrives in the next milestone.",
+        "Share URL copied. Anyone with this link can download the file.",
       );
     } catch {
       setMessage(
@@ -333,11 +333,11 @@ export function OwnerUploadPanel() {
             onClick={copySharePath}
             type="button"
           >
-            Copy reserved share URL
+            Copy share URL
           </button>
           <p className="mt-3 text-xs leading-5 text-emerald-800">
-            The token is shown only in this browser session. The public download
-            endpoint is intentionally deferred to the next milestone.
+            The token is shown only in this browser session. Treat the URL as a
+            password: anyone who has it can download the file until it expires.
           </p>
         </div>
       ) : null}

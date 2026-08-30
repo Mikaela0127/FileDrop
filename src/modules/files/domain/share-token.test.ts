@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { generateShareToken, hashShareToken } from "./share-token";
+import {
+  generateShareToken,
+  hashShareToken,
+  isShareToken,
+} from "./share-token";
 
 describe("share tokens", () => {
   it("generates URL-safe 256-bit bearer tokens", () => {
@@ -8,7 +12,18 @@ describe("share tokens", () => {
     const secondToken = generateShareToken();
 
     expect(firstToken).toMatch(/^[A-Za-z0-9_-]{43}$/u);
+    expect(isShareToken(firstToken)).toBe(true);
     expect(secondToken).not.toBe(firstToken);
+  });
+
+  it.each([
+    "",
+    "a".repeat(42),
+    "a".repeat(44),
+    "a".repeat(43),
+    `${"A".repeat(42)}+`,
+  ])("rejects non-canonical bearer token %j", (value) => {
+    expect(isShareToken(value)).toBe(false);
   });
 
   it("hashes tokens to the database representation", () => {

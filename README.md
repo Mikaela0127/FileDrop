@@ -4,10 +4,11 @@ FileDrop is a private, expiring file-transfer service built as a full-stack
 engineering portfolio project. File metadata lives in PostgreSQL; file bytes live
 in private S3-compatible object storage.
 
-The application is under active development. Day 6 provides the first complete
-owner upload pipeline: authenticate, authorize a direct browser-to-R2 PUT,
-inspect the stored object, and atomically mark matching metadata `READY`. Public
-download and scheduled expiry cleanup are intentionally still unavailable.
+The application is under active development. Day 7 provides the first complete
+transfer path: the owner uploads directly to R2, FileDrop verifies the stored
+object, and an opaque public link resolves eligible files to a five-minute R2
+download authorization. Scheduled expiry cleanup is intentionally still
+unavailable.
 
 ## Requirements
 
@@ -92,8 +93,19 @@ The Day 6 upload endpoints are:
 The browser sends file bytes directly to R2, never through Next.js or
 PostgreSQL. The completion endpoint is safe to retry after success. A missing
 object remains `PENDING`; an expired or mismatched object is rejected and
-best-effort deleted. Day 6 reserves the generated `/d/<share-token>` path, but
-the link will not download until the public download milestone is implemented.
+best-effort deleted.
+
+The Day 7 public download endpoint is:
+
+- `GET /d/:shareToken` — validate the canonical 256-bit bearer token, look up
+  only its SHA-256 hash, require a `READY` and unexpired record, then redirect to
+  a five-minute presigned R2 `GetObject` URL. The authorization is shortened
+  when the file expires sooner and requests an attachment filename without
+  proxying bytes through Next.js.
+
+The raw token and presigned URL are never stored. Public download responses use
+`Cache-Control: no-store` and `Referrer-Policy: no-referrer`. Treat every share
+link as a password: anyone who possesses it can download until file expiry.
 
 The committed Compose configuration exposes PostgreSQL only on
 `127.0.0.1:5432`. Its `filedrop` password is for local development only and must
@@ -162,6 +174,7 @@ and credential review checklist.
 - [ADR 0006: Cloudflare R2 presigned upload adapter](docs/decisions/0006-cloudflare-r2-upload-adapter.md)
 - [ADR 0007: Owner passphrase and signed sessions](docs/decisions/0007-owner-passphrase-session.md)
 - [ADR 0008: Verify stored objects before readiness](docs/decisions/0008-verified-upload-completion.md)
+- [ADR 0009: Resolve public downloads with short-lived redirects](docs/decisions/0009-short-lived-download-redirect.md)
 - [Cloudflare R2 setup](docs/deployment/cloudflare-r2.md)
 - [Owner authentication setup](docs/deployment/owner-authentication.md)
 
@@ -177,6 +190,7 @@ and credential review checklist.
 ## Delivery plan
 
 The two-week implementation schedule runs from 2026-08-24 through 2026-09-06.
-Day 6 implements the authenticated direct-upload page and both upload API
-boundaries. PostgreSQL lifecycle transitions and R2 metadata verification now
-guard `READY`; Day 7 can build public download resolution on that trusted state.
+Day 7 implements public token resolution and short-lived direct downloads.
+PostgreSQL lifecycle state and application-level expiry now guard both storage
+write and read capabilities; Day 8 can add scheduled expiry and physical object
+deletion.

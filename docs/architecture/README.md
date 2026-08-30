@@ -10,11 +10,11 @@ separate modules.
 Control path
 Browser ──> owner authentication ──> Next.js route handlers ──> PostgreSQL
                                         │                         ▲
-                                        ├── creates presigned URL │
+                                        ├── creates upload URL    │
                                         └── inspects R2 metadata ─┘
 
 File path
-Browser ────────────────────────────> private Cloudflare R2 bucket
+Browser ───── direct PUT / redirected GET ─────> private Cloudflare R2 bucket
 
 Cleanup path
 Scheduled job ──> file application service ──> PostgreSQL + R2
@@ -112,6 +112,32 @@ be retried. A mismatch becomes `FAILED`; an upload completed after its file
 expiry becomes `EXPIRED`. Those rejected objects are deleted on a best-effort
 basis. A later cleanup worker must retry any failed physical deletion.
 
+## Public download boundary
+
+```text
+GET /d/<raw-share-token>
+        │ canonical 256-bit token validation
+        ▼
+ResolveDownload
+        ├── SHA-256 ──> FileRepository ──> READY + unexpired metadata
+        └── DownloadUrlProvider ─────────> at most five-minute GET URL
+                                                │
+                                                ▼ 307 + no-store + no-referrer
+                                      Browser ──> private R2 object
+```
+
+The route never queries PostgreSQL with the raw bearer token. Malformed,
+missing, and non-`READY` links receive no storage authorization; expired links
+fail immediately even before the cleanup worker physically removes their R2
+objects. Download authorization is always shorter than the remaining file
+lifetime and requests `Content-Disposition: attachment` with a safely encoded
+original file name.
+
+The 307 response lets R2 send the bytes directly, preserving the same bandwidth
+boundary as upload. It deliberately uses `no-store` so an intermediary does not
+cache the temporary signed location, and `no-referrer` so the raw share path is
+not forwarded to the R2 S3 endpoint. The private bucket has no public URL.
+
 ## R2 upload adapter
 
 ```text
@@ -137,9 +163,11 @@ completion use case independently proves the stored byte count with
 `HeadObject`. The R2 object adapter also supports scoped deletion of rejected
 opaque keys.
 
-Presigned URLs are bearer credentials. They are returned to the initiating
-browser only, never logged or persisted, and expire after 15 minutes. R2 API
-credentials remain exclusively in the server environment.
+Presigned URLs are bearer credentials. Upload authorizations are returned to the
+initiating browser only and expire after 15 minutes; download authorizations are
+returned only in an uncached redirect and expire after at most five minutes.
+Neither is persisted. R2 API credentials remain exclusively in the server
+environment.
 
 ## Persistence boundary
 
