@@ -21,9 +21,11 @@ export async function handlePublicDownload(
 ): Promise<NextResponse> {
   try {
     if (!publicDownloadHandler) {
+      const fileRepository = new PrismaFileRepository(prisma);
       publicDownloadHandler = createPublicDownloadHandler(
         createResolveDownload({
-          fileRepository: new PrismaFileRepository(prisma),
+          fileRepository,
+          downloadStatisticsRepository: fileRepository,
           downloadUrlProvider: getR2DownloadUrlProvider(),
         }),
       );

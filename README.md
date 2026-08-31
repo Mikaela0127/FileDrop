@@ -4,10 +4,11 @@ FileDrop is a private, expiring file-transfer service built as a full-stack
 engineering portfolio project. File metadata lives in PostgreSQL; file bytes live
 in private S3-compatible object storage.
 
-The application is under active development. Day 8 provides a complete expiring
-transfer path: the owner uploads directly to R2, FileDrop verifies the stored
-object, an opaque public link resolves eligible files to a five-minute R2
-download authorization, and an authenticated daily job removes expired objects.
+The application is under active development. Day 9 provides a complete expiring
+transfer path with basic download statistics: the owner uploads directly to R2,
+FileDrop verifies the stored object, an opaque public link resolves eligible
+files to a five-minute R2 download authorization, each successful authorization
+handoff is counted, and an authenticated daily job removes expired objects.
 
 ## Requirements
 
@@ -106,6 +107,15 @@ The raw token and presigned URL are never stored. Public download responses use
 `Cache-Control: no-store` and `Referrer-Policy: no-referrer`. Treat every share
 link as a password: anyone who possesses it can download until file expiry.
 
+Day 9 records one download authorization only after the signed R2 URL has passed
+all safety checks and the file is still atomically confirmed as `READY` and
+unexpired. PostgreSQL increments `downloadCount` without a read-modify-write
+race and advances `lastDownloadedAt` without allowing an older concurrent
+request to move the timestamp backwards. These counters measure redirects that
+FileDrop authorized, not completed R2 byte transfers; repeated opens count as
+separate handoffs. The values are stored for a later owner-only management view
+and are not exposed by the public download route.
+
 ### Configure scheduled cleanup
 
 Generate a third independent secret for the cleanup endpoint and place it only
@@ -201,6 +211,7 @@ and credential review checklist.
 - [ADR 0008: Verify stored objects before readiness](docs/decisions/0008-verified-upload-completion.md)
 - [ADR 0009: Resolve public downloads with short-lived redirects](docs/decisions/0009-short-lived-download-redirect.md)
 - [ADR 0010: Lease-based scheduled deletion](docs/decisions/0010-lease-based-scheduled-deletion.md)
+- [ADR 0011: Count authorized download handoffs](docs/decisions/0011-authorized-download-statistics.md)
 - [Cloudflare R2 setup](docs/deployment/cloudflare-r2.md)
 - [Owner authentication setup](docs/deployment/owner-authentication.md)
 - [Scheduled cleanup setup](docs/deployment/scheduled-cleanup.md)
@@ -218,6 +229,7 @@ and credential review checklist.
 
 The two-week implementation schedule runs from 2026-08-24 through 2026-09-06.
 Day 8 implements authenticated scheduled expiry, concurrency-safe cleanup
-leases, retryable R2 deletion, and durable `DELETED` metadata. Day 9 can build
-basic download statistics on top of the existing counters without changing the
-storage boundary.
+leases, retryable R2 deletion, and durable `DELETED` metadata. Day 9 adds
+concurrency-safe download-authorization counters without changing the direct R2
+storage boundary. A later owner-only management view can present those stored
+statistics without exposing file metadata through the public bearer-link route.

@@ -8,6 +8,7 @@ import type {
   FileRepository,
 } from "../../application/ports/file-repository";
 import type { FileCleanupRepository } from "../../application/ports/file-cleanup-repository";
+import type { DownloadStatisticsRepository } from "../../application/ports/download-statistics-repository";
 import type { FileRecord, FileStatus } from "../../domain/file-record";
 
 const FILE_STATUS_MAP: Record<PrismaFileStatus, FileStatus> = {
@@ -36,7 +37,7 @@ function toFileRecord(file: PrismaFile): FileRecord {
 }
 
 export class PrismaFileRepository
-  implements FileRepository, FileCleanupRepository
+  implements FileRepository, FileCleanupRepository, DownloadStatisticsRepository
 {
   constructor(private readonly client: PrismaClient) {}
 
@@ -112,6 +113,35 @@ export class PrismaFileRepository
     });
 
     return files.map((file) => file.id);
+  }
+
+  async recordDownloadAuthorization(
+    fileId: string,
+    authorizedAt: Date,
+  ): Promise<boolean> {
+    const eligibility = {
+      id: fileId,
+      status: "READY" as const,
+      expiresAt: { gt: authorizedAt },
+    };
+    const [countUpdate] = await this.client.$transaction([
+      this.client.file.updateMany({
+        where: eligibility,
+        data: { downloadCount: { increment: 1 } },
+      }),
+      this.client.file.updateMany({
+        where: {
+          ...eligibility,
+          OR: [
+            { lastDownloadedAt: null },
+            { lastDownloadedAt: { lt: authorizedAt } },
+          ],
+        },
+        data: { lastDownloadedAt: authorizedAt },
+      }),
+    ]);
+
+    return countUpdate.count === 1;
   }
 
   async claimForDeletion(

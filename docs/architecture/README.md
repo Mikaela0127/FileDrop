@@ -120,7 +120,8 @@ GET /d/<raw-share-token>
         ▼
 ResolveDownload
         ├── SHA-256 ──> FileRepository ──> READY + unexpired metadata
-        └── DownloadUrlProvider ─────────> at most five-minute GET URL
+        ├── DownloadUrlProvider ─────────> at most five-minute GET URL
+        └── DownloadStatisticsRepository ─> conditional count + latest time
                                                 │
                                                 ▼ 307 + no-store + no-referrer
                                       Browser ──> private R2 object
@@ -132,6 +133,19 @@ fail immediately even before the cleanup worker physically removes their R2
 objects. Download authorization is always shorter than the remaining file
 lifetime and requests `Content-Disposition: attachment` with a safely encoded
 original file name.
+
+After validating the temporary URL, the use case records the handoff before
+disclosing the redirect. The statistics update conditionally requires the row
+to remain `READY` and unexpired, so a concurrent cleanup transition wins safely:
+FileDrop discards the undisclosed URL and returns an unavailable response. A
+database error also prevents the handoff instead of silently undercounting it.
+
+`downloadCount` uses PostgreSQL's atomic increment rather than an application
+read-modify-write. `lastDownloadedAt` is advanced in the same transaction only
+when the new authorization time is later, so out-of-order concurrent requests
+cannot regress it. The statistic means "FileDrop issued a valid redirect," not
+"R2 delivered every byte"; the direct-storage boundary provides no completion
+callback or server-side byte stream to prove that stronger event.
 
 The 307 response lets R2 send the bytes directly, preserving the same bandwidth
 boundary as upload. It deliberately uses `no-store` so an intermediary does not
@@ -221,6 +235,12 @@ PostgreSQL                     constraints, indexes, durable metadata
 The initial `files` table stores identifiers, a SHA-256 share-token hash, the R2
 object key, user-visible metadata, lifecycle timestamps, and download counters.
 The raw share token and file bytes are never stored in PostgreSQL.
+
+Day 9 writes the existing `download_count` and `last_downloaded_at` columns
+through a dedicated application port. No schema migration is necessary. The
+same Prisma adapter implements the general metadata, cleanup, and download
+statistics ports, while each use case depends only on the narrow interface it
+needs.
 
 The lifecycle begins in `PENDING` while a client uploads directly to R2. Verified
 completion moves it to `READY`. Expiry and physical deletion are separate states

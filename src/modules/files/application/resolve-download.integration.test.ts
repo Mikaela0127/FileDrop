@@ -53,6 +53,7 @@ describe("resolveDownload with PostgreSQL", () => {
     };
     const resolveDownload = createResolveDownload({
       fileRepository: repository,
+      downloadStatisticsRepository: repository,
       downloadUrlProvider,
       clock: () => now,
     });
@@ -65,6 +66,10 @@ describe("resolveDownload with PostgreSQL", () => {
       objectKey: createdFile.objectKey,
       originalName: "portfolio.pdf",
       expiresInSeconds: 300,
+    });
+    await expect(repository.findById(createdFile.id)).resolves.toMatchObject({
+      downloadCount: 1,
+      lastDownloadedAt: now,
     });
   });
 });

@@ -1,4 +1,5 @@
 import type { FileRepository } from "./ports/file-repository";
+import type { DownloadStatisticsRepository } from "./ports/download-statistics-repository";
 import {
   DOWNLOAD_URL_TTL_SECONDS,
   type DownloadAuthorization,
@@ -18,6 +19,7 @@ export class DownloadResolutionError extends Error {
 
 export interface ResolveDownloadDependencies {
   fileRepository: FileRepository;
+  downloadStatisticsRepository: DownloadStatisticsRepository;
   downloadUrlProvider: DownloadUrlProvider;
   clock?: () => Date;
 }
@@ -65,6 +67,7 @@ function validateAuthorization(
 
 export function createResolveDownload({
   fileRepository,
+  downloadStatisticsRepository,
   downloadUrlProvider,
   clock = () => new Date(),
 }: ResolveDownloadDependencies) {
@@ -114,11 +117,25 @@ export function createResolveDownload({
       throw new TypeError("Cannot validate a download with an invalid clock");
     }
 
-    return validateAuthorization(
+    const result = validateAuthorization(
       authorization,
       validatedAt,
       file.expiresAt,
       requestedTtlSeconds,
     );
+
+    const recorded =
+      await downloadStatisticsRepository.recordDownloadAuthorization(
+        file.id,
+        validatedAt,
+      );
+
+    if (!recorded) {
+      // The URL has not been disclosed yet. A failed conditional update means
+      // the file stopped being eligible while the authorization was created.
+      throw new DownloadResolutionError("DOWNLOAD_NOT_FOUND");
+    }
+
+    return result;
   };
 }

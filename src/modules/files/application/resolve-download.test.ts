@@ -7,6 +7,7 @@ import {
   DownloadResolutionError,
 } from "./resolve-download";
 import type { DownloadUrlProvider } from "./ports/download-url-provider";
+import type { DownloadStatisticsRepository } from "./ports/download-statistics-repository";
 import type { FileRepository } from "./ports/file-repository";
 
 const now = new Date("2026-08-30T08:00:00.000Z");
@@ -49,13 +50,22 @@ function createHarness(file: FileRecord | null = createFile()) {
       expiresAt: new Date(now.getTime() + input.expiresInSeconds * 1_000),
     })),
   };
+  const downloadStatisticsRepository: DownloadStatisticsRepository = {
+    recordDownloadAuthorization: vi.fn(async () => true),
+  };
   const resolveDownload = createResolveDownload({
     fileRepository,
+    downloadStatisticsRepository,
     downloadUrlProvider,
     clock: () => now,
   });
 
-  return { downloadUrlProvider, fileRepository, resolveDownload };
+  return {
+    downloadStatisticsRepository,
+    downloadUrlProvider,
+    fileRepository,
+    resolveDownload,
+  };
 }
 
 describe("resolveDownload", () => {
@@ -74,6 +84,9 @@ describe("resolveDownload", () => {
       originalName: "architecture.pdf",
       expiresInSeconds: 300,
     });
+    expect(
+      harness.downloadStatisticsRepository.recordDownloadAuthorization,
+    ).toHaveBeenCalledWith(createFile().id, now);
   });
 
   it("does not query PostgreSQL for a malformed token", async () => {
@@ -85,6 +98,9 @@ describe("resolveDownload", () => {
     expect(harness.fileRepository.findByShareTokenHash).not.toHaveBeenCalled();
     expect(
       harness.downloadUrlProvider.createDownloadUrl,
+    ).not.toHaveBeenCalled();
+    expect(
+      harness.downloadStatisticsRepository.recordDownloadAuthorization,
     ).not.toHaveBeenCalled();
   });
 
@@ -99,6 +115,9 @@ describe("resolveDownload", () => {
       expect(
         harness.downloadUrlProvider.createDownloadUrl,
       ).not.toHaveBeenCalled();
+      expect(
+        harness.downloadStatisticsRepository.recordDownloadAuthorization,
+      ).not.toHaveBeenCalled();
     },
   );
 
@@ -112,6 +131,9 @@ describe("resolveDownload", () => {
     });
     expect(
       harness.downloadUrlProvider.createDownloadUrl,
+    ).not.toHaveBeenCalled();
+    expect(
+      harness.downloadStatisticsRepository.recordDownloadAuthorization,
     ).not.toHaveBeenCalled();
   });
 
@@ -151,5 +173,25 @@ describe("resolveDownload", () => {
         code: "INVALID_DOWNLOAD_AUTHORIZATION",
       }),
     );
+    expect(
+      harness.downloadStatisticsRepository.recordDownloadAuthorization,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("does not disclose an authorization when the statistics update loses eligibility", async () => {
+    const harness = createHarness();
+    vi.mocked(
+      harness.downloadStatisticsRepository.recordDownloadAuthorization,
+    ).mockResolvedValueOnce(false);
+
+    await expect(harness.resolveDownload(shareToken)).rejects.toMatchObject({
+      code: "DOWNLOAD_NOT_FOUND",
+    });
+    expect(
+      harness.downloadUrlProvider.createDownloadUrl,
+    ).toHaveBeenCalledOnce();
+    expect(
+      harness.downloadStatisticsRepository.recordDownloadAuthorization,
+    ).toHaveBeenCalledWith(createFile().id, now);
   });
 });

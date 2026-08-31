@@ -46,3 +46,6 @@ for a private bucket and keeps application bandwidth independent of file size.
 The redirect records authorization issuance rather than proof that a transfer
 completed. Download statistics therefore remain a separate milestone and must
 define their counting semantics explicitly.
+
+ADR 0011 completes that follow-up by counting only validated, conditionally
+recorded authorization handoffs.

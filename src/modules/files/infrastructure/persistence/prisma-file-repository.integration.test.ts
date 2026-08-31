@@ -169,6 +169,58 @@ describe("PrismaFileRepository", () => {
     },
   );
 
+  it("atomically records concurrent download authorizations without regressing the latest timestamp", async () => {
+    const baseTime = new Date("2026-08-31T08:00:00.000Z");
+    const file = await createFileForCleanup(
+      "READY",
+      new Date("2026-09-01T08:00:00.000Z"),
+    );
+    const authorizationTimes = [7, 1, 9, 4, 2, 10, 5, 3, 8, 6].map(
+      (offset) => new Date(baseTime.getTime() + offset * 1_000),
+    );
+
+    await expect(
+      Promise.all(
+        authorizationTimes.map((authorizedAt) =>
+          repository.recordDownloadAuthorization(file.id, authorizedAt),
+        ),
+      ),
+    ).resolves.toEqual(authorizationTimes.map(() => true));
+
+    await expect(repository.findById(file.id)).resolves.toMatchObject({
+      downloadCount: authorizationTimes.length,
+      lastDownloadedAt: new Date("2026-08-31T08:00:10.000Z"),
+    });
+  });
+
+  it("does not record authorization for a non-ready or expired file", async () => {
+    const authorizedAt = new Date("2026-08-31T08:00:00.000Z");
+    const pending = await createFileForCleanup(
+      "PENDING",
+      new Date("2026-09-01T08:00:00.000Z"),
+    );
+    const expired = await createFileForCleanup(
+      "EXPIRED",
+      new Date("2026-09-01T08:00:00.000Z"),
+    );
+    const readyButDue = await createFileForCleanup("READY", authorizedAt);
+
+    await expect(
+      Promise.all(
+        [pending, expired, readyButDue].map((file) =>
+          repository.recordDownloadAuthorization(file.id, authorizedAt),
+        ),
+      ),
+    ).resolves.toEqual([false, false, false]);
+
+    for (const file of [pending, expired, readyButDue]) {
+      await expect(repository.findById(file.id)).resolves.toMatchObject({
+        downloadCount: 0,
+        lastDownloadedAt: null,
+      });
+    }
+  });
+
   it("expires only due pending and ready records within the batch", async () => {
     const now = new Date("2026-08-30T08:00:00.000Z");
     const pending = await createFileForCleanup(
