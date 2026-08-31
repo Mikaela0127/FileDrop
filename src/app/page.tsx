@@ -35,12 +35,20 @@ export default function Home() {
               FileDrop transfers files through private object storage while
               keeping ownership, metadata, and expiry rules under your control.
             </p>
-            <a
-              className="mt-7 inline-flex rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
-              href="/upload"
-            >
-              Open owner upload
-            </a>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <a
+                className="inline-flex rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                href="/upload"
+              >
+                Open owner upload
+              </a>
+              <a
+                className="inline-flex rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                href="/files"
+              >
+                View file activity
+              </a>
+            </div>
           </div>
 
           <dl className="grid grid-cols-2 gap-3">

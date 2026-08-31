@@ -4,11 +4,12 @@ FileDrop is a private, expiring file-transfer service built as a full-stack
 engineering portfolio project. File metadata lives in PostgreSQL; file bytes live
 in private S3-compatible object storage.
 
-The application is under active development. Day 9 provides a complete expiring
-transfer path with basic download statistics: the owner uploads directly to R2,
-FileDrop verifies the stored object, an opaque public link resolves eligible
-files to a five-minute R2 download authorization, each successful authorization
-handoff is counted, and an authenticated daily job removes expired objects.
+The application is under active development. Day 10 provides a complete
+expiring transfer path with a private owner activity view: the owner uploads
+directly to R2, FileDrop verifies the stored object, an opaque public link
+resolves eligible files to a five-minute R2 download authorization, each
+successful authorization handoff is counted, an authenticated daily job removes
+expired objects, and the owner can review bounded lifecycle metadata.
 
 ## Requirements
 
@@ -116,6 +117,15 @@ FileDrop authorized, not completed R2 byte transfers; repeated opens count as
 separate handoffs. The values are stored for a later owner-only management view
 and are not exposed by the public download route.
 
+The Day 10 owner catalog is available at <http://localhost:3000/files> and uses:
+
+- `GET /api/files` — require a valid owner session, select at most the 50 newest
+  records, and return only the metadata used by the management interface.
+
+The response is uncached and omits the share-token hash and private R2 object
+key. Existing share URLs cannot be listed because FileDrop intentionally never
+stores their raw bearer tokens; copy the URL when an upload completes.
+
 ### Configure scheduled cleanup
 
 Generate a third independent secret for the cleanup endpoint and place it only
@@ -212,6 +222,7 @@ and credential review checklist.
 - [ADR 0009: Resolve public downloads with short-lived redirects](docs/decisions/0009-short-lived-download-redirect.md)
 - [ADR 0010: Lease-based scheduled deletion](docs/decisions/0010-lease-based-scheduled-deletion.md)
 - [ADR 0011: Count authorized download handoffs](docs/decisions/0011-authorized-download-statistics.md)
+- [ADR 0012: Expose a bounded owner-only file catalog](docs/decisions/0012-owner-file-catalog.md)
 - [Cloudflare R2 setup](docs/deployment/cloudflare-r2.md)
 - [Owner authentication setup](docs/deployment/owner-authentication.md)
 - [Scheduled cleanup setup](docs/deployment/scheduled-cleanup.md)
@@ -231,5 +242,5 @@ The two-week implementation schedule runs from 2026-08-24 through 2026-09-06.
 Day 8 implements authenticated scheduled expiry, concurrency-safe cleanup
 leases, retryable R2 deletion, and durable `DELETED` metadata. Day 9 adds
 concurrency-safe download-authorization counters without changing the direct R2
-storage boundary. A later owner-only management view can present those stored
-statistics without exposing file metadata through the public bearer-link route.
+storage boundary. Day 10 presents bounded, data-minimized lifecycle and download
+metadata through an owner-authenticated API and responsive management page.

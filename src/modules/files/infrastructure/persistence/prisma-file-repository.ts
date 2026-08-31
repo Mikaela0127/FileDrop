@@ -9,6 +9,10 @@ import type {
 } from "../../application/ports/file-repository";
 import type { FileCleanupRepository } from "../../application/ports/file-cleanup-repository";
 import type { DownloadStatisticsRepository } from "../../application/ports/download-statistics-repository";
+import type {
+  OwnerFileCatalogItem,
+  OwnerFileCatalogRepository,
+} from "../../application/ports/owner-file-catalog-repository";
 import type { FileRecord, FileStatus } from "../../domain/file-record";
 
 const FILE_STATUS_MAP: Record<PrismaFileStatus, FileStatus> = {
@@ -21,13 +25,7 @@ const FILE_STATUS_MAP: Record<PrismaFileStatus, FileStatus> = {
 };
 
 function toFileRecord(file: PrismaFile): FileRecord {
-  const sizeBytes = Number(file.sizeBytes);
-
-  if (!Number.isSafeInteger(sizeBytes)) {
-    throw new Error(
-      `File ${file.id} has a size outside JavaScript's safe range`,
-    );
-  }
+  const sizeBytes = toSafeFileSize(file.id, file.sizeBytes);
 
   return {
     ...file,
@@ -36,8 +34,24 @@ function toFileRecord(file: PrismaFile): FileRecord {
   };
 }
 
+function toSafeFileSize(fileId: string, sizeBytes: bigint): number {
+  const numericSize = Number(sizeBytes);
+
+  if (!Number.isSafeInteger(numericSize)) {
+    throw new Error(
+      `File ${fileId} has a size outside JavaScript's safe range`,
+    );
+  }
+
+  return numericSize;
+}
+
 export class PrismaFileRepository
-  implements FileRepository, FileCleanupRepository, DownloadStatisticsRepository
+  implements
+    FileRepository,
+    FileCleanupRepository,
+    DownloadStatisticsRepository,
+    OwnerFileCatalogRepository
 {
   constructor(private readonly client: PrismaClient) {}
 
@@ -66,6 +80,34 @@ export class PrismaFileRepository
     });
 
     return file ? toFileRecord(file) : null;
+  }
+
+  async listRecent(limit: number): Promise<OwnerFileCatalogItem[]> {
+    if (!Number.isSafeInteger(limit) || limit < 1) {
+      throw new RangeError("File catalog limit must be a positive integer");
+    }
+
+    const files = await this.client.file.findMany({
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit,
+      select: {
+        id: true,
+        originalName: true,
+        contentType: true,
+        sizeBytes: true,
+        status: true,
+        expiresAt: true,
+        downloadCount: true,
+        lastDownloadedAt: true,
+        createdAt: true,
+      },
+    });
+
+    return files.map((file) => ({
+      ...file,
+      sizeBytes: toSafeFileSize(file.id, file.sizeBytes),
+      status: FILE_STATUS_MAP[file.status],
+    }));
   }
 
   markExpiredIfPending(id: string): Promise<FileRecord | null> {

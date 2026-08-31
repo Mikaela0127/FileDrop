@@ -39,7 +39,7 @@ export function OwnerLoginPanel() {
         setStatus({
           kind: "success",
           message:
-            "Owner session created. The upload interface arrives in the next milestone.",
+            "Owner session created. You can now upload files or review private file activity.",
         });
         return;
       }
@@ -148,6 +148,21 @@ export function OwnerLoginPanel() {
       >
         Clear current session
       </button>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <a
+          className="rounded-2xl border border-slate-300 px-4 py-3 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          href="/upload"
+        >
+          Open upload
+        </a>
+        <a
+          className="rounded-2xl border border-slate-300 px-4 py-3 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          href="/files"
+        >
+          View file activity
+        </a>
+      </div>
 
       <p className="mt-6 text-xs leading-5 text-slate-500">
         The passphrase is sent only to the same-origin FileDrop API over your

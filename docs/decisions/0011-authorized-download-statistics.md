@@ -29,8 +29,9 @@ or redirects that bypass a failed statistics write.
 - Keep persistence behind a narrow `DownloadStatisticsRepository` application
   port. The Prisma adapter may implement that port alongside the other file
   repository contracts.
-- Do not expose the counters through the public bearer-link route. A future
-  owner-only management view can read the stored metadata.
+- Do not expose the counters through the public bearer-link route. The
+  owner-only management view defined by ADR 0012 may read the stored metadata
+  after independently verifying the signed owner session.
 
 ## Consequences
 

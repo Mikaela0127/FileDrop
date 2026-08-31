@@ -23,6 +23,12 @@ export default function OwnerUploadPage() {
           directly to the private bucket, then verifies the actual R2 metadata
           before marking it ready.
         </p>
+        <a
+          className="mt-6 inline-flex text-sm font-semibold text-indigo-700 hover:text-indigo-900"
+          href="/files"
+        >
+          View file activity
+        </a>
       </section>
 
       <section className="order-1 lg:order-2">

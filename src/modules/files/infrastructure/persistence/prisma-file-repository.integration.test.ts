@@ -169,6 +169,48 @@ describe("PrismaFileRepository", () => {
     },
   );
 
+  it("lists a bounded newest-first owner catalog without storage secrets", async () => {
+    const rows = [
+      ["oldest.pdf", "2099-01-01T08:00:00.000Z"],
+      ["middle.pdf", "2099-01-01T08:01:00.000Z"],
+      ["newest.pdf", "2099-01-01T08:02:00.000Z"],
+    ] as const;
+
+    for (const [originalName, createdAt] of rows) {
+      const created = await client.file.create({
+        data: {
+          shareTokenHash: createHash("sha256")
+            .update(randomUUID())
+            .digest("hex"),
+          objectKey: `objects/${randomUUID()}`,
+          originalName,
+          contentType: "application/pdf",
+          sizeBytes: BigInt(42),
+          status: "READY",
+          expiresAt: new Date("2100-01-01T08:00:00.000Z"),
+          uploadedAt: new Date(createdAt),
+          createdAt: new Date(createdAt),
+        },
+      });
+      createdFileIds.push(created.id);
+    }
+
+    const files = await repository.listRecent(2);
+
+    expect(files.map((file) => file.originalName)).toEqual([
+      "newest.pdf",
+      "middle.pdf",
+    ]);
+    expect(files[0]).toMatchObject({
+      contentType: "application/pdf",
+      sizeBytes: 42,
+      status: "READY",
+      downloadCount: 0,
+    });
+    expect(files[0]).not.toHaveProperty("shareTokenHash");
+    expect(files[0]).not.toHaveProperty("objectKey");
+  });
+
   it("atomically records concurrent download authorizations without regressing the latest timestamp", async () => {
     const baseTime = new Date("2026-08-31T08:00:00.000Z");
     const file = await createFileForCleanup(

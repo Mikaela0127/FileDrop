@@ -152,6 +152,43 @@ boundary as upload. It deliberately uses `no-store` so an intermediary does not
 cache the temporary signed location, and `no-referrer` so the raw share path is
 not forwarded to the R2 S3 endpoint. The private bucket has no public URL.
 
+## Owner file catalog boundary
+
+```text
+GET /api/files + HttpOnly owner cookie
+                  │ verify signed session
+                  ▼
+          ListOwnerFiles (limit 50)
+                  │ OwnerFileCatalogRepository
+                  ▼
+        Prisma safe-column projection ──> PostgreSQL
+                  │
+                  ▼ no-store JSON
+          /files responsive activity view
+```
+
+The browser's session check is not the authorization boundary. Every catalog
+request independently verifies the signed `HttpOnly`, `SameSite=Strict` owner
+cookie before querying PostgreSQL. Authentication or database failures return a
+generic uncached response without infrastructure details.
+
+The application use case fixes the first catalog window at 50 newest records so
+the database query is never unbounded. The Prisma adapter selects only the
+fields displayed by the page: identifier, original name, content type, size,
+lifecycle status, creation and expiry times, and download statistics. It does
+not select or serialize `share_token_hash` or `object_key`.
+
+The page treats a due `PENDING` or `READY` row as effectively expired even if
+the daily cleanup job has not persisted its lifecycle transition yet. This is a
+presentation rule only; reads do not mutate lifecycle state. Aggregate cards
+therefore describe only the currently loaded bounded window, not every historic
+record.
+
+Existing share links cannot be reconstructed in the catalog. Initialization
+returns the raw 256-bit bearer token once, while PostgreSQL retains only its
+one-way SHA-256 hash. Preserving that security property is more important than a
+convenient "copy old link" action.
+
 ## Scheduled cleanup boundary
 
 ```text
@@ -241,6 +278,11 @@ through a dedicated application port. No schema migration is necessary. The
 same Prisma adapter implements the general metadata, cleanup, and download
 statistics ports, while each use case depends only on the narrow interface it
 needs.
+
+Day 10 reads a data-minimized projection through
+`OwnerFileCatalogRepository`. It reuses the same Prisma adapter and existing
+schema, but neither the application result nor the owner API contains object
+storage identifiers or token hashes. No migration is required.
 
 The lifecycle begins in `PENDING` while a client uploads directly to R2. Verified
 completion moves it to `READY`. Expiry and physical deletion are separate states
