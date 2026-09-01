@@ -223,6 +223,42 @@ mutable cloud resources from entering an otherwise deterministic public-repo
 test. Production R2, Neon, HTTPS, CORS, and cron remain explicit deployment smoke
 tests.
 
+## Production deployment boundary
+
+```text
+Encrypted provider settings
+          │
+          ▼
+Production contract ── reject missing/insecure configuration
+          │
+          ▼
+Prisma generate ──> migrate deploy ──> Next.js build ──> publish
+                                              │
+                               global browser security headers
+
+GitHub dependency or Action update
+          └──> pinned SHA + public CI + secret-history scan
+```
+
+Local development and production intentionally have different configuration
+contracts. Localhost may use HTTP, local PostgreSQL, and absent cloud adapters.
+The Vercel build requires an exact HTTPS origin, remote TLS-protected PostgreSQL,
+complete owner/cleanup/R2 settings, and independent session and cleanup secrets.
+Validation errors disclose rule names only, not supplied values.
+
+The global header policy suppresses referrers so bearer share paths are not sent
+to third parties, prevents framing and MIME sniffing, disables unused browser
+capabilities, and constrains browser content/network sources. The CSP permits
+the Cloudflare R2 HTTPS endpoint for direct PUTs. Its remaining inline-script
+allowance is a documented static-rendering trade-off, not a substitute for
+React escaping and input validation.
+
+The deployment gate applies committed migrations before publication. A code
+rollback does not reverse those durable database changes, so migrations must
+remain backward compatible. Production credentials are scoped only to the
+production environment; untrusted previews fail closed unless given isolated
+resources.
+
 ## Scheduled cleanup boundary
 
 ```text

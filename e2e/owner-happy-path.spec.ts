@@ -68,18 +68,21 @@ test("owner can sign in, upload, copy the share URL, and review activity", async
             "If-None-Match": "*",
           },
           method: "PUT",
-          url: `https://uploads.example.test/objects/${FILE_ID}`,
+          url: `https://00000000000000000000000000000000.r2.cloudflarestorage.com/objects/${FILE_ID}`,
         },
       }),
     });
   });
 
-  await page.route("https://uploads.example.test/**", async (route) => {
-    expect(route.request().method()).toBe("PUT");
-    expect(route.request().headers()["content-type"]).toBe("application/pdf");
-    expect(route.request().headers()["if-none-match"]).toBe("*");
-    await route.fulfill({ status: 200 });
-  });
+  await page.route(
+    "https://00000000000000000000000000000000.r2.cloudflarestorage.com/**",
+    async (route) => {
+      expect(route.request().method()).toBe("PUT");
+      expect(route.request().headers()["content-type"]).toBe("application/pdf");
+      expect(route.request().headers()["if-none-match"]).toBe("*");
+      await route.fulfill({ status: 200 });
+    },
+  );
 
   await page.route("**/api/uploads/*/complete", async (route) => {
     expect(route.request().method()).toBe("POST");

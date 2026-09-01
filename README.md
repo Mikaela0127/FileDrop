@@ -4,7 +4,7 @@ FileDrop is a private, expiring file-transfer service built as a full-stack
 engineering portfolio project. File metadata lives in PostgreSQL; file bytes live
 in private S3-compatible object storage.
 
-The application is under active development. Day 11 provides a complete
+The application is under active development. Day 12 provides a complete
 expiring transfer path with a private owner activity view: the owner uploads
 directly to R2, FileDrop verifies the stored object, an opaque public link
 resolves eligible files to a five-minute R2 download authorization, each
@@ -12,7 +12,9 @@ successful authorization handoff is counted, an authenticated daily job removes
 expired objects, and the owner can review bounded lifecycle metadata. The
 responsive owner journey now includes keyboard-visible focus, a skip link,
 screen-reader status announcements, reduced-motion support, and Playwright
-coverage at desktop and mobile Chromium viewports.
+coverage at desktop and mobile Chromium viewports. Production deployment now
+fails closed on incomplete or insecure settings, applies global browser security
+headers, pins CI actions, and has a repeatable deployment and rollback runbook.
 
 ## Requirements
 
@@ -191,6 +193,7 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm test:integration
+pnpm deploy:check       # Requires a complete production-grade environment
 pnpm build
 pnpm exec playwright install chromium
 pnpm test:e2e
@@ -237,9 +240,11 @@ and credential review checklist.
 - [ADR 0011: Count authorized download handoffs](docs/decisions/0011-authorized-download-statistics.md)
 - [ADR 0012: Expose a bounded owner-only file catalog](docs/decisions/0012-owner-file-catalog.md)
 - [ADR 0013: Test the owner browser journey at deterministic boundaries](docs/decisions/0013-browser-contract-e2e.md)
+- [ADR 0014: Fail closed before production deployment](docs/decisions/0014-production-deployment-guardrails.md)
 - [Cloudflare R2 setup](docs/deployment/cloudflare-r2.md)
 - [Owner authentication setup](docs/deployment/owner-authentication.md)
 - [Scheduled cleanup setup](docs/deployment/scheduled-cleanup.md)
+- [Production deployment runbook](docs/deployment/production-readiness.md)
 - [Browser E2E testing](docs/testing/browser-e2e.md)
 
 ## Confirmed MVP policy
@@ -261,3 +266,6 @@ storage boundary. Day 10 presents bounded, data-minimized lifecycle and download
 metadata through an owner-authenticated API and responsive management page. Day
 11 hardens keyboard, screen-reader, reduced-motion, and narrow-screen behavior,
 then exercises the complete owner UI contract in desktop and mobile Chromium.
+Day 12 adds production-only configuration validation, global browser security
+headers, immutable CI action references, automated dependency update proposals,
+database-aware deployment gates, and an end-to-end production runbook.

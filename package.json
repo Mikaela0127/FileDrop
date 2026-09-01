@@ -24,6 +24,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
+    "deploy:check": "tsx scripts/check-production-environment.ts",
     "security:secrets": "gitleaks git --redact --no-banner --verbose .",
     "security:audit": "pnpm audit --audit-level high",
     "auth:hash-password": "tsx scripts/generate-owner-password-hash.ts",

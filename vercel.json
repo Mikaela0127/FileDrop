@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm deploy:check && pnpm db:generate && pnpm db:migrate:deploy && pnpm build",
   "crons": [
     {
       "path": "/api/cron/cleanup",

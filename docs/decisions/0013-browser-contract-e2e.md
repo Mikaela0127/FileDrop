@@ -24,11 +24,12 @@ upload page through sign-in, upload initialization, direct PUT, completion,
 one-time share-URL copy, and the owner activity catalog.
 
 The browser test intercepts only the HTTP boundaries involved in that journey.
-Fixtures return deterministic non-secret API responses and a reserved
-`example.test` upload URL. The test asserts outgoing methods, metadata, content
-type, and `If-None-Match` header before returning success. No production code
-contains a test flag, mock adapter, authentication bypass, or provider
-credential.
+Fixtures return deterministic non-secret API responses and a zero-account,
+R2-shaped upload URL that satisfies the production CSP without identifying a
+real Cloudflare account. Playwright intercepts it before network access. The
+test asserts outgoing methods, metadata, content type, and `If-None-Match`
+header before returning success. No production code contains a test flag, mock
+adapter, authentication bypass, or provider credential.
 
 Backend confidence stays layered:
 
