@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 type Status =
@@ -83,18 +84,24 @@ export function OwnerLoginPanel() {
   }
 
   return (
-    <div className="rounded-3xl border border-white/70 bg-white/90 p-7 shadow-[0_24px_80px_-32px_rgba(34,50,90,0.35)] backdrop-blur sm:p-10">
+    <div
+      aria-busy={pending}
+      className="rounded-3xl border border-white/70 bg-white/90 p-7 shadow-[0_24px_80px_-32px_rgba(34,50,90,0.35)] backdrop-blur sm:p-10"
+    >
       <div className="mb-8 flex items-center gap-3">
-        <span className="grid size-11 place-items-center rounded-2xl bg-indigo-600 text-lg font-bold text-white">
+        <span
+          aria-hidden="true"
+          className="grid size-11 place-items-center rounded-2xl bg-indigo-600 text-lg font-bold text-white"
+        >
           F
         </span>
         <div>
           <p className="text-xs font-semibold tracking-[0.18em] text-indigo-700 uppercase">
             FileDrop owner
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
+          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
             Private upload access
-          </h1>
+          </h2>
         </div>
       </div>
 
@@ -128,7 +135,8 @@ export function OwnerLoginPanel() {
       </form>
 
       <p
-        aria-live="polite"
+        aria-atomic="true"
+        aria-live={status.kind === "error" ? "assertive" : "polite"}
         className={`mt-5 min-h-12 rounded-2xl px-4 py-3 text-sm leading-6 ${
           status.kind === "error"
             ? "bg-rose-50 text-rose-800"
@@ -136,6 +144,7 @@ export function OwnerLoginPanel() {
               ? "bg-emerald-50 text-emerald-800"
               : "bg-slate-50 text-slate-600"
         }`}
+        role={status.kind === "error" ? "alert" : "status"}
       >
         {status.message}
       </p>
@@ -150,18 +159,18 @@ export function OwnerLoginPanel() {
       </button>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <a
+        <Link
           className="rounded-2xl border border-slate-300 px-4 py-3 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           href="/upload"
         >
           Open upload
-        </a>
-        <a
+        </Link>
+        <Link
           className="rounded-2xl border border-slate-300 px-4 py-3 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           href="/files"
         >
           View file activity
-        </a>
+        </Link>
       </div>
 
       <p className="mt-6 text-xs leading-5 text-slate-500">

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import {
   EXPIRATION_OPTIONS,
@@ -27,7 +28,7 @@ interface InitializedUpload {
 interface UploadResult {
   fileName: string;
   fileExpiresAt: string;
-  sharePath: string;
+  shareUrl: string;
 }
 
 const stageMessages: Record<UploadStage, string> = {
@@ -74,6 +75,7 @@ export function OwnerUploadPanel() {
   const [stage, setStage] = useState<UploadStage>("idle");
   const [message, setMessage] = useState(stageMessages.idle);
   const [result, setResult] = useState<UploadResult>();
+  const resultHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const pending =
     stage === "preparing" || stage === "uploading" || stage === "verifying";
@@ -107,6 +109,12 @@ export function OwnerUploadPanel() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (stage === "success") {
+      resultHeadingRef.current?.focus();
+    }
+  }, [stage]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -188,7 +196,10 @@ export function OwnerUploadPanel() {
       setResult({
         fileName: file.name,
         fileExpiresAt: initialized.fileExpiresAt,
-        sharePath: `/d/${initialized.shareToken}`,
+        shareUrl: new URL(
+          `/d/${initialized.shareToken}`,
+          window.location.origin,
+        ).toString(),
       });
       form.reset();
       setStage("success");
@@ -210,22 +221,24 @@ export function OwnerUploadPanel() {
     }
 
     try {
-      await navigator.clipboard.writeText(
-        new URL(result.sharePath, window.location.origin).toString(),
-      );
+      await navigator.clipboard.writeText(result.shareUrl);
       setMessage(
         "Share URL copied. Anyone with this link can download the file.",
       );
     } catch {
       setMessage(
-        "Could not access the clipboard. Copy the reserved path manually.",
+        "Could not access the clipboard. Copy the displayed URL manually.",
       );
     }
   }
 
   if (access === "checking") {
     return (
-      <div className="rounded-3xl border border-white/70 bg-white/90 p-8 text-sm text-slate-600 shadow-[0_24px_80px_-32px_rgba(34,50,90,0.35)]">
+      <div
+        aria-live="polite"
+        className="rounded-3xl border border-white/70 bg-white/90 p-8 text-sm text-slate-600 shadow-[0_24px_80px_-32px_rgba(34,50,90,0.35)]"
+        role="status"
+      >
         Checking the owner session…
       </div>
     );
@@ -233,26 +246,36 @@ export function OwnerUploadPanel() {
 
   if (access === "unauthenticated") {
     return (
-      <div className="rounded-3xl border border-amber-200 bg-white/90 p-8 shadow-[0_24px_80px_-32px_rgba(34,50,90,0.35)]">
-        <h2 className="text-xl font-semibold text-slate-950">
+      <div
+        aria-labelledby="upload-auth-required"
+        className="rounded-3xl border border-amber-200 bg-white/90 p-8 shadow-[0_24px_80px_-32px_rgba(34,50,90,0.35)]"
+        role="region"
+      >
+        <h2
+          className="text-xl font-semibold text-slate-950"
+          id="upload-auth-required"
+        >
           Owner session required
         </h2>
         <p className="mt-3 text-sm leading-6 text-slate-600">
           The upload API independently verifies your signed session before it
           creates any R2 authorization.
         </p>
-        <a
+        <Link
           className="mt-6 inline-flex rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
           href="/login"
         >
           Go to owner sign in
-        </a>
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="rounded-3xl border border-white/70 bg-white/90 p-7 shadow-[0_24px_80px_-32px_rgba(34,50,90,0.35)] backdrop-blur sm:p-10">
+    <div
+      aria-busy={pending}
+      className="rounded-3xl border border-white/70 bg-white/90 p-7 shadow-[0_24px_80px_-32px_rgba(34,50,90,0.35)] backdrop-blur sm:p-10"
+    >
       <form className="space-y-6" onSubmit={handleSubmit}>
         <div>
           <label
@@ -262,6 +285,7 @@ export function OwnerUploadPanel() {
             File
           </label>
           <input
+            aria-describedby="upload-file-help"
             className="block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:font-semibold file:text-indigo-700"
             disabled={pending}
             id="upload-file"
@@ -269,7 +293,7 @@ export function OwnerUploadPanel() {
             required
             type="file"
           />
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-slate-500" id="upload-file-help">
             Maximum {MAX_FILE_SIZE_LABEL} (3,000,000,000 bytes). One file per
             upload.
           </p>
@@ -283,6 +307,7 @@ export function OwnerUploadPanel() {
             Delete after
           </label>
           <select
+            aria-describedby="expiration-help"
             className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
             defaultValue={86_400}
             disabled={pending}
@@ -295,6 +320,13 @@ export function OwnerUploadPanel() {
               </option>
             ))}
           </select>
+          <p
+            className="mt-2 text-xs leading-5 text-slate-500"
+            id="expiration-help"
+          >
+            Download access stops at this time, even if physical cleanup runs
+            later.
+          </p>
         </div>
 
         <button
@@ -307,7 +339,8 @@ export function OwnerUploadPanel() {
       </form>
 
       <p
-        aria-live="polite"
+        aria-atomic="true"
+        aria-live={stage === "error" ? "assertive" : "polite"}
         className={`mt-6 rounded-2xl px-4 py-3 text-sm leading-6 ${
           stage === "error"
             ? "bg-rose-50 text-rose-800"
@@ -315,18 +348,29 @@ export function OwnerUploadPanel() {
               ? "bg-emerald-50 text-emerald-800"
               : "bg-slate-50 text-slate-600"
         }`}
+        role={stage === "error" ? "alert" : "status"}
       >
         {message}
       </p>
 
       {result ? (
-        <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
-          <p className="font-semibold text-emerald-950">{result.fileName}</p>
+        <section
+          aria-labelledby="upload-result-heading"
+          className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4"
+        >
+          <h2
+            className="font-semibold break-words text-emerald-950 outline-none"
+            id="upload-result-heading"
+            ref={resultHeadingRef}
+            tabIndex={-1}
+          >
+            Upload ready: {result.fileName}
+          </h2>
           <p className="mt-1 text-xs text-emerald-800">
             Expires {new Date(result.fileExpiresAt).toLocaleString()}
           </p>
-          <code className="mt-4 block overflow-x-auto rounded-xl bg-white px-3 py-2 text-xs text-slate-700">
-            {result.sharePath}
+          <code className="mt-4 block rounded-xl bg-white px-3 py-2 text-xs break-all whitespace-normal text-slate-700">
+            {result.shareUrl}
           </code>
           <button
             className="mt-3 rounded-xl border border-emerald-300 bg-white px-4 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
@@ -339,7 +383,7 @@ export function OwnerUploadPanel() {
             The token is shown only in this browser session. Treat the URL as a
             password: anyone who has it can download the file until it expires.
           </p>
-        </div>
+        </section>
       ) : null}
     </div>
   );

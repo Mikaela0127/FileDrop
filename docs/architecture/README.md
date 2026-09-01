@@ -189,6 +189,40 @@ returns the raw 256-bit bearer token once, while PostgreSQL retains only its
 one-way SHA-256 hash. Preserving that security property is more important than a
 convenient "copy old link" action.
 
+## Browser experience and verification boundary
+
+```text
+Desktop / mobile Chromium
+        │ semantic roles + keyboard navigation
+        ▼
+Built Next.js owner UI
+        │ browser-observed HTTP contracts
+        ├── mocked same-origin owner APIs
+        └── mocked presigned object PUT
+
+Backend confidence remains separate:
+Vitest application/HTTP tests + PostgreSQL repository integration tests
+```
+
+Day 11 treats accessibility as part of application behavior rather than visual
+polish. Every page exposes a unique heading and title, a keyboard skip link
+targets the single main landmark, status changes use live regions, focus moves
+to the one-time upload result, and global focus indicators remain visible.
+Motion-heavy transitions are suppressed when the operating system requests
+reduced motion. File cards collapse to one-column metadata on narrow screens,
+and the complete owner browser journey is checked at desktop and mobile
+Chromium viewports without horizontal overflow.
+
+The Playwright suite deliberately tests the built Next.js UI against
+deterministic browser-network fixtures. It validates the requests emitted by the
+UI, the signed-upload header contract supplied to the browser, clipboard output,
+navigation, and rendered owner metadata. It does not claim to prove Prisma, JWT,
+or R2 behavior; those boundaries have dedicated unit and integration tests.
+Keeping provider calls out of pull-request CI prevents real credentials and
+mutable cloud resources from entering an otherwise deterministic public-repo
+test. Production R2, Neon, HTTPS, CORS, and cron remain explicit deployment smoke
+tests.
+
 ## Scheduled cleanup boundary
 
 ```text

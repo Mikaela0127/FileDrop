@@ -10,18 +10,22 @@ export const metadata: Metadata = {
 
 export default function OwnerLoginPage() {
   return (
-    <main className="mx-auto grid min-h-screen w-full max-w-5xl items-center gap-10 px-6 py-16 sm:px-10 lg:grid-cols-[0.8fr_1.2fr]">
+    <main
+      className="mx-auto grid min-h-screen w-full max-w-5xl items-center gap-10 px-4 py-10 sm:px-10 sm:py-16 lg:grid-cols-[0.8fr_1.2fr]"
+      id="main-content"
+      tabIndex={-1}
+    >
       <section className="order-2 lg:order-1">
         <p className="text-sm font-semibold tracking-[0.16em] text-indigo-700 uppercase">
-          Day 5 authentication
+          Owner authentication
         </p>
-        <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950">
+        <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950">
           One owner today, replaceable authorization tomorrow.
-        </h2>
+        </h1>
         <p className="mt-5 max-w-lg text-base leading-7 text-slate-600">
-          Authentication verifies the passphrase, session management remembers
-          the result, and authorization will guard every upload operation at its
-          server boundary.
+          Authentication verifies the passphrase, creates a signed session, and
+          protects every private upload and metadata request at its server
+          boundary.
         </p>
       </section>
 

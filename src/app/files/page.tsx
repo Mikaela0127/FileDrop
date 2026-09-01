@@ -11,7 +11,11 @@ export const metadata: Metadata = {
 
 export default function OwnerFileCatalogPage() {
   return (
-    <main className="mx-auto min-h-screen w-full max-w-6xl px-6 py-12 sm:px-10 sm:py-16">
+    <main
+      className="mx-auto min-h-screen w-full max-w-6xl px-4 py-10 sm:px-10 sm:py-16"
+      id="main-content"
+      tabIndex={-1}
+    >
       <header className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-semibold tracking-[0.16em] text-indigo-700 uppercase">

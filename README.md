@@ -4,12 +4,15 @@ FileDrop is a private, expiring file-transfer service built as a full-stack
 engineering portfolio project. File metadata lives in PostgreSQL; file bytes live
 in private S3-compatible object storage.
 
-The application is under active development. Day 10 provides a complete
+The application is under active development. Day 11 provides a complete
 expiring transfer path with a private owner activity view: the owner uploads
 directly to R2, FileDrop verifies the stored object, an opaque public link
 resolves eligible files to a five-minute R2 download authorization, each
 successful authorization handoff is counted, an authenticated daily job removes
-expired objects, and the owner can review bounded lifecycle metadata.
+expired objects, and the owner can review bounded lifecycle metadata. The
+responsive owner journey now includes keyboard-visible focus, a skip link,
+screen-reader status announcements, reduced-motion support, and Playwright
+coverage at desktop and mobile Chromium viewports.
 
 ## Requirements
 
@@ -189,9 +192,19 @@ pnpm typecheck
 pnpm test
 pnpm test:integration
 pnpm build
+pnpm exec playwright install chromium
+pnpm test:e2e
 pnpm security:secrets
 pnpm security:audit
 ```
+
+Playwright runs the built Next.js application and verifies the browser journey
+from sign-in through upload, share-URL copy, and owner activity. Its API and
+presigned-storage responses are deterministic browser-boundary fixtures; they
+contain no live passphrase, session, R2 credential, bucket, database, or share
+token. Backend authorization, lifecycle, Prisma, and R2 adapter behavior remain
+covered by unit and PostgreSQL integration tests. See
+[the browser E2E guide](docs/testing/browser-e2e.md).
 
 The same checks run in GitHub Actions for pull requests and pushes to `main`.
 The default production build uses Next.js's supported Webpack path so it also
@@ -223,9 +236,11 @@ and credential review checklist.
 - [ADR 0010: Lease-based scheduled deletion](docs/decisions/0010-lease-based-scheduled-deletion.md)
 - [ADR 0011: Count authorized download handoffs](docs/decisions/0011-authorized-download-statistics.md)
 - [ADR 0012: Expose a bounded owner-only file catalog](docs/decisions/0012-owner-file-catalog.md)
+- [ADR 0013: Test the owner browser journey at deterministic boundaries](docs/decisions/0013-browser-contract-e2e.md)
 - [Cloudflare R2 setup](docs/deployment/cloudflare-r2.md)
 - [Owner authentication setup](docs/deployment/owner-authentication.md)
 - [Scheduled cleanup setup](docs/deployment/scheduled-cleanup.md)
+- [Browser E2E testing](docs/testing/browser-e2e.md)
 
 ## Confirmed MVP policy
 
@@ -243,4 +258,6 @@ Day 8 implements authenticated scheduled expiry, concurrency-safe cleanup
 leases, retryable R2 deletion, and durable `DELETED` metadata. Day 9 adds
 concurrency-safe download-authorization counters without changing the direct R2
 storage boundary. Day 10 presents bounded, data-minimized lifecycle and download
-metadata through an owner-authenticated API and responsive management page.
+metadata through an owner-authenticated API and responsive management page. Day
+11 hardens keyboard, screen-reader, reduced-motion, and narrow-screen behavior,
+then exercises the complete owner UI contract in desktop and mobile Chromium.

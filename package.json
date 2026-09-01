@@ -11,6 +11,8 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "test:integration": "vitest run --config vitest.integration.config.mts",
     "test:watch": "vitest",
     "format": "prettier --write .",
@@ -42,6 +44,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "26.2.0",
     "@types/pg": "^8.23.1",

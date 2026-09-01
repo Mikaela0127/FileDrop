@@ -2,6 +2,7 @@ import {
   EXPIRATION_OPTIONS,
   MAX_FILE_SIZE_LABEL,
 } from "@/modules/files/domain/file-policy";
+import Link from "next/link";
 
 const foundations = [
   "Next.js 16 App Router with strict TypeScript",
@@ -12,10 +13,17 @@ const foundations = [
 
 export default function Home() {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl items-center px-6 py-16 sm:px-10">
+    <main
+      className="mx-auto flex min-h-screen w-full max-w-5xl items-center px-4 py-10 sm:px-10 sm:py-16"
+      id="main-content"
+      tabIndex={-1}
+    >
       <section className="w-full rounded-3xl border border-white/70 bg-white/85 p-8 shadow-[0_24px_80px_-32px_rgba(34,50,90,0.35)] backdrop-blur sm:p-12">
         <div className="mb-10 flex items-center gap-3">
-          <span className="grid size-11 place-items-center rounded-2xl bg-indigo-600 text-lg font-bold text-white">
+          <span
+            aria-hidden="true"
+            className="grid size-11 place-items-center rounded-2xl bg-indigo-600 text-lg font-bold text-white"
+          >
             F
           </span>
           <span className="text-sm font-semibold tracking-[0.18em] text-indigo-700 uppercase">
@@ -28,7 +36,7 @@ export default function Home() {
             <p className="mb-3 text-sm font-medium text-indigo-700">
               Engineering foundation ready
             </p>
-            <h1 className="max-w-2xl text-4xl leading-tight font-semibold tracking-tight text-slate-950 sm:text-6xl">
+            <h1 className="max-w-2xl text-3xl leading-tight font-semibold tracking-tight text-slate-950 sm:text-6xl">
               Private file sharing, built to expire.
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
@@ -36,18 +44,18 @@ export default function Home() {
               keeping ownership, metadata, and expiry rules under your control.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
-              <a
+              <Link
                 className="inline-flex rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
                 href="/upload"
               >
                 Open owner upload
-              </a>
-              <a
+              </Link>
+              <Link
                 className="inline-flex rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 href="/files"
               >
                 View file activity
-              </a>
+              </Link>
             </div>
           </div>
 

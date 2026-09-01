@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { OwnerUploadPanel } from "./owner-upload-panel";
 
@@ -10,10 +11,14 @@ export const metadata: Metadata = {
 
 export default function OwnerUploadPage() {
   return (
-    <main className="mx-auto grid min-h-screen w-full max-w-5xl items-center gap-10 px-6 py-16 sm:px-10 lg:grid-cols-[0.8fr_1.2fr]">
+    <main
+      className="mx-auto grid min-h-screen w-full max-w-5xl items-center gap-10 px-4 py-10 sm:px-10 sm:py-16 lg:grid-cols-[0.8fr_1.2fr]"
+      id="main-content"
+      tabIndex={-1}
+    >
       <section className="order-2 lg:order-1">
         <p className="text-sm font-semibold tracking-[0.16em] text-indigo-700 uppercase">
-          Day 6 upload pipeline
+          Owner upload
         </p>
         <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950">
           The application controls access. R2 carries the bytes.
@@ -23,12 +28,12 @@ export default function OwnerUploadPage() {
           directly to the private bucket, then verifies the actual R2 metadata
           before marking it ready.
         </p>
-        <a
+        <Link
           className="mt-6 inline-flex text-sm font-semibold text-indigo-700 hover:text-indigo-900"
           href="/files"
         >
           View file activity
-        </a>
+        </Link>
       </section>
 
       <section className="order-1 lg:order-2">
