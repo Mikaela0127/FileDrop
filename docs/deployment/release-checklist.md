@@ -1,11 +1,10 @@
-# MVP release checklist
+# FileDrop v1.0 release checklist
 
-Day 14 closes the two-week implementation phase. This checklist separates a
-code-complete release candidate from the account-authorized work required to
-publish it. Never paste completed secret values into this file, a commit, an
-issue, or a deployment note.
+This checklist separates source-release verification from the account-authorized
+work required to operate FileDrop in production. Never paste completed secret
+values into this file, a commit, an issue, or a deployment note.
 
-## 1. Freeze and verify the release candidate
+## 1. Freeze and verify the release
 
 - [ ] Start the disposable local PostgreSQL service with `pnpm db:up`.
 - [ ] Apply committed migrations with `pnpm db:migrate:deploy`.
@@ -53,7 +52,8 @@ result. Do not record a share link or provider value.
 
 - [ ] Enable GitHub Private Vulnerability Reporting and verify that the
       repository's **Report a vulnerability** form is available.
-- [ ] Create the first GitHub release only after the deployed checks pass.
+- [ ] Publish the verified source commit as a GitHub release.
+- [ ] Record production rollout status separately from the source release.
 - [ ] Observe Vercel, Neon, and R2 signals during the first real transfers.
 - [ ] Follow the
       [monitoring and first-response guide](../operations/production-monitoring.md)

@@ -1,26 +1,27 @@
 # FileDrop
 
-FileDrop is a private, expiring file-transfer service built as a full-stack
-engineering portfolio project. File metadata lives in PostgreSQL; file bytes live
-in private S3-compatible object storage.
+FileDrop is a self-hosted private file-transfer service with expiring share
+links. It keeps file metadata in PostgreSQL and file bytes in a private
+S3-compatible object store, so application servers never proxy large uploads or
+downloads.
 
-The MVP codebase is release-ready but has not yet been connected to the owner's
-production cloud accounts. Day 14 closes the implementation phase with a
-local-only release gate, public contribution and private vulnerability-reporting
-guidance, and an explicit launch checklist. The application provides a complete
-expiring transfer path with a private owner activity view: the owner uploads
-directly to R2, FileDrop verifies the stored object, an opaque public link
-resolves eligible files to a five-minute R2 download authorization, each
-successful authorization handoff is counted, an authenticated daily job removes
-expired objects, and the owner can review bounded lifecycle metadata. The
-responsive owner journey now includes keyboard-visible focus, a skip link,
-screen-reader status announcements, reduced-motion support, and Playwright
-coverage at desktop and mobile Chromium viewports. Production deployment now
-fails closed on incomplete or insecure settings, applies global browser security
-headers, pins CI actions, and has a repeatable deployment and rollback runbook.
-A minimal public health endpoint and a credential-free production smoke command
-now verify deployed liveness, security headers, and anonymous authorization
-boundaries without mutating production or disclosing dependency details.
+Version 1.0 provides an owner-authenticated upload workflow, direct Cloudflare
+R2 transfers for files up to 3 GB, opaque public download links, configurable
+expiry, automatic cleanup, download authorization statistics, and a responsive
+owner activity view. The repository also includes production configuration
+validation, browser security headers, CI, release checks, health monitoring,
+smoke tests, and deployment and rollback documentation.
+
+## Features
+
+- Owner-only upload access with scrypt password verification and signed,
+  `HttpOnly` sessions
+- Direct-to-R2 uploads and short-lived download redirects
+- PostgreSQL-backed metadata, lifecycle state, and download statistics
+- Expiry choices from one hour to seven days with retryable scheduled deletion
+- Responsive, keyboard-accessible owner interface
+- Unit, integration, and browser end-to-end test coverage
+- Production guardrails for secrets, dependencies, migrations, and deployment
 
 ## Requirements
 
@@ -76,7 +77,7 @@ argument, issue, screenshot, or chat. Configure `SESSION_SECRET` and
 <http://localhost:3000/login>. Production must set `APP_URL` to the exact HTTPS
 application origin so the session cookie receives its `Secure` attribute.
 
-The Day 5 authentication endpoints are:
+The authentication endpoints are:
 
 - `POST /api/auth/login` — verify the passphrase and create an eight-hour owner
   session.
@@ -93,7 +94,7 @@ Add the four private R2 values described in
 file, configure bucket CORS, restart the development server, sign in, and open
 <http://localhost:3000/upload>.
 
-The Day 6 upload endpoints are:
+The upload endpoints are:
 
 - `POST /api/uploads/initialize` — authenticate the owner, validate at most 4
   KiB of strict metadata JSON, create a `PENDING` row, and return a 15-minute R2
@@ -107,7 +108,7 @@ PostgreSQL. The completion endpoint is safe to retry after success. A missing
 object remains `PENDING`; an expired or mismatched object is rejected and
 best-effort deleted.
 
-The Day 7 public download endpoint is:
+The public download endpoint is:
 
 - `GET /d/:shareToken` — validate the canonical 256-bit bearer token, look up
   only its SHA-256 hash, require a `READY` and unexpired record, then redirect to
@@ -119,7 +120,7 @@ The raw token and presigned URL are never stored. Public download responses use
 `Cache-Control: no-store` and `Referrer-Policy: no-referrer`. Treat every share
 link as a password: anyone who possesses it can download until file expiry.
 
-Day 9 records one download authorization only after the signed R2 URL has passed
+FileDrop records one download authorization only after the signed R2 URL has passed
 all safety checks and the file is still atomically confirmed as `READY` and
 unexpired. PostgreSQL increments `downloadCount` without a read-modify-write
 race and advances `lastDownloadedAt` without allowing an older concurrent
@@ -128,7 +129,7 @@ FileDrop authorized, not completed R2 byte transfers; repeated opens count as
 separate handoffs. The values are stored for a later owner-only management view
 and are not exposed by the public download route.
 
-The Day 10 owner catalog is available at <http://localhost:3000/files> and uses:
+The owner catalog is available at <http://localhost:3000/files> and uses:
 
 - `GET /api/files` — require a valid owner session, select at most the 50 newest
   records, and return only the metadata used by the management interface.
@@ -147,7 +148,7 @@ environment settings:
 openssl rand -hex 32
 ```
 
-The Day 8 cleanup endpoint is:
+The cleanup endpoint is:
 
 - `GET /api/cron/cleanup` — require `Authorization: Bearer <CRON_SECRET>`, mark
   due `PENDING` and `READY` rows as `EXPIRED`, claim at most 100 cleanup
@@ -256,39 +257,25 @@ and credential review checklist.
 - [Scheduled cleanup setup](docs/deployment/scheduled-cleanup.md)
 - [Production deployment runbook](docs/deployment/production-readiness.md)
 - [Production monitoring and first response](docs/operations/production-monitoring.md)
-- [MVP release checklist](docs/deployment/release-checklist.md)
+- [v1.0 release checklist](docs/deployment/release-checklist.md)
 - [Browser E2E testing](docs/testing/browser-e2e.md)
 - [Contribution guide](CONTRIBUTING.md)
 - [Private vulnerability reporting policy](SECURITY.md)
 
-## Confirmed MVP policy
+## Version 1.0 scope
 
-- Owner-only uploads during the initial release
+- Owner-only uploads
 - 3 GB decimal maximum file size
 - Expiry options: 1 hour, 24 hours, 3 days, and 7 days
 - Private Cloudflare R2 bucket with presigned upload/download URLs
 - PostgreSQL metadata and lifecycle state
 - Provider-neutral application, provisionally deployed with Vercel + Neon + R2
 
-## Delivery plan
+## Release
 
-The two-week implementation schedule runs from 2026-08-24 through 2026-09-06.
-Day 8 implements authenticated scheduled expiry, concurrency-safe cleanup
-leases, retryable R2 deletion, and durable `DELETED` metadata. Day 9 adds
-concurrency-safe download-authorization counters without changing the direct R2
-storage boundary. Day 10 presents bounded, data-minimized lifecycle and download
-metadata through an owner-authenticated API and responsive management page. Day
-11 hardens keyboard, screen-reader, reduced-motion, and narrow-screen behavior,
-then exercises the complete owner UI contract in desktop and mobile Chromium.
-Day 12 adds production-only configuration validation, global browser security
-headers, immutable CI action references, automated dependency update proposals,
-database-aware deployment gates, and an end-to-end production runbook.
-Day 13 adds a dependency-free public liveness contract, an anonymous read-only
-production smoke command, and monitoring/incident guidance while keeping the
-credentialed state-changing deployment test explicit and manual.
-Day 14 packages the MVP as a release candidate: one local-only command exercises
-the complete quality and security gate, the repository documents safe
-contribution and private vulnerability reporting, and a final checklist keeps
-code verification separate from credentialed cloud provisioning and production
-acceptance. Actual publication still requires the owner's Vercel, Neon,
-Cloudflare, DNS, and secret configuration.
+`v1.0.0` is the first stable source release of FileDrop. See the
+[changelog](CHANGELOG.md) for its contents and the
+[release checklist](docs/deployment/release-checklist.md) for production rollout.
+Running an instance requires operator-owned PostgreSQL, private S3-compatible
+storage, deployment, DNS, and secret configuration; no production credentials
+or user files are included in this repository.

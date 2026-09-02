@@ -1,6 +1,6 @@
 # Production monitoring and first-response guide
 
-Day 13 adds a minimal public liveness endpoint and a repeatable, anonymous
+FileDrop exposes a minimal public liveness endpoint and a repeatable, anonymous
 production smoke test. Neither mechanism needs an owner passphrase, session
 cookie, cleanup secret, database URL, or R2 credential.
 
@@ -25,7 +25,7 @@ Configure any future uptime monitor to:
 - alert only after two consecutive failures to reduce transient noise;
 - never attach authentication, cookies, share links, or provider values.
 
-An external monitoring service is optional for the MVP. The endpoint itself
+An external monitoring service is optional for v1.0. The endpoint itself
 adds no paid dependency.
 
 ## Anonymous post-deployment smoke test

@@ -1,6 +1,6 @@
 # Owner authentication setup
 
-FileDrop's Day 5 authentication is intended for one owner. It does not create a
+FileDrop v1.0 authentication is intended for one owner. It does not create a
 database user and it must not be shared with friends. The login page is `/login`.
 
 ## Required secrets

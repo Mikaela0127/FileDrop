@@ -41,4 +41,4 @@ The core upload flow can be tested now without R2 credentials, and later storage
 providers can implement the same port. A generated URL may become unused if the
 database write fails, but it is never returned and expires within 15 minutes.
 The API must return the raw share token exactly once; losing it requires a new
-upload in the MVP.
+upload in v1.0.

@@ -6,9 +6,9 @@ time to update before technical details become public.
 
 ## Supported versions
 
-Until the first stable release, security fixes are applied to the latest commit
-on `main`. After releases begin, only the latest published version and `main`
-will receive security fixes.
+Security fixes are applied to the latest published version and the current
+`main` branch. Older releases are not supported unless explicitly stated in
+their release notes.
 
 ## Report a vulnerability
 

@@ -2,7 +2,7 @@
 
 Unit tests do not require real Cloudflare credentials: signing occurs locally
 with obviously fake values and the object adapter uses injected responses. Real
-credentials are required for the Day 6 upload and Day 7 download flows.
+credentials are required for the upload and download integrations.
 
 ## 1. Create a private bucket
 
@@ -81,10 +81,10 @@ up to 3,000,000,000 bytes and one of the supported expiry periods.
 
 The interface reports three control stages: authorization, direct upload, and
 server verification. It intentionally does not report byte-level progress;
-multipart upload and progress are later reliability features. A successful Day
-6 result shows a `/d/<share-token>` path. Day 7 resolves that link to a
-short-lived direct download. Keep it private: both the share token and generated
-R2 URL are bearer capabilities.
+multipart upload and progress are later reliability features. A successful
+upload shows a `/d/<share-token>` path, which resolves to a short-lived direct
+download. Keep it private: both the share token and generated R2 URL are bearer
+capabilities.
 
 ## 5. End-to-end security checks
 

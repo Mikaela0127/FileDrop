@@ -101,9 +101,7 @@ try {
 
   checks.forEach(runCheck);
 
-  process.stdout.write(
-    `\nRelease candidate passed all ${checks.length} local checks.\n`,
-  );
+  process.stdout.write(`\nRelease passed all ${checks.length} local checks.\n`);
 } catch (error) {
   const message = error instanceof Error ? error.message : "unknown failure";
   process.stderr.write(`\nRelease check stopped: ${message}\n`);

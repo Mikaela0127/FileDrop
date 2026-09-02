@@ -20,5 +20,5 @@ a private Cloudflare R2 bucket without receiving storage credentials.
 - CORS must allow only approved FileDrop origins.
 - Basic download statistics count authorized download hand-offs, not completed
   byte transfers.
-- The 3 GB MVP upload uses single PUT and must restart after a network failure.
+- The 3 GB v1.0 upload uses single PUT and must restart after a network failure.
   Multipart upload and resume are a planned follow-up.

@@ -5,11 +5,11 @@
 
 ## Context
 
-Day 9 persists download authorization counters, but an owner needs a safe way to
-review those values alongside file lifecycle metadata. The public bearer-link
-route must not expose this information. A catalog query must also avoid leaking
-storage identifiers or token hashes and must not become an unbounded database
-read as the table grows.
+FileDrop persists download authorization counters, but an owner needs a safe
+way to review those values alongside file lifecycle metadata. The public
+bearer-link route must not expose this information. A catalog query must also
+avoid leaking storage identifiers or token hashes and must not become an
+unbounded database read as the table grows.
 
 The raw share token is deliberately returned only during upload initialization
 and is never persisted. Consequently, an existing share URL cannot be recovered
@@ -32,7 +32,7 @@ from PostgreSQL without weakening the current bearer-token design.
   persistence during a read.
 - Do not store raw share tokens or add a reconstructed-link feature. Continue to
   show the share URL only when upload initialization returns it.
-- Reuse the existing metadata schema; Day 10 requires no migration.
+- Reuse the existing metadata schema; the catalog requires no migration.
 
 ## Consequences
 

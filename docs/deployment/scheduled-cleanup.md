@@ -1,10 +1,10 @@
 # Scheduled cleanup deployment
 
-Day 8 uses the application's existing Node.js deployment as a short-lived cleanup
-worker. No continuously running server or separate queue is required for the
-MVP: a scheduler sends an authenticated request, the function updates
-PostgreSQL, and the same function deletes eligible R2 objects through its scoped
-S3 credentials.
+FileDrop uses the application's existing Node.js deployment as a short-lived
+cleanup worker. No continuously running server or separate queue is required in
+v1.0: a scheduler sends an authenticated request, the function updates
+PostgreSQL, and the same function deletes eligible R2 objects through its
+scoped S3 credentials.
 
 ## Required production values
 

@@ -1,7 +1,7 @@
 # Contributing to FileDrop
 
-FileDrop is a learning-focused but production-oriented modular monolith. Small,
-well-explained changes with tests are preferred over broad feature additions.
+FileDrop is a production-oriented modular monolith. Small, well-explained
+changes with tests are preferred over broad feature additions.
 
 ## Before changing code
 

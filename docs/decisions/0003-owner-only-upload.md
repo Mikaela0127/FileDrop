@@ -1,4 +1,4 @@
-# ADR 0003: Restrict MVP uploads to the owner
+# ADR 0003: Restrict uploads to the owner
 
 - Status: Accepted
 - Date: 2026-08-23

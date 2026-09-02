@@ -1,7 +1,7 @@
 # Browser E2E testing
 
-Day 11 adds Playwright coverage for the owner-facing happy path at desktop and
-mobile Chromium viewports.
+The Playwright suite covers the owner-facing happy path at desktop and mobile
+Chromium viewports.
 
 ## Local run
 

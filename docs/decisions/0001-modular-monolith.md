@@ -5,10 +5,10 @@
 
 ## Context
 
-The MVP needs a responsive UI, a small HTTP API, PostgreSQL metadata, object
-storage integration, and a scheduled cleanup operation. Deploying independent
-frontend and backend services would add operational work without creating a
-useful boundary at this scale.
+FileDrop v1.0 needs a responsive UI, a small HTTP API, PostgreSQL metadata,
+object storage integration, and a scheduled cleanup operation. Deploying
+independent frontend and backend services would add operational work without
+creating a useful boundary at this scale.
 
 ## Decision
 

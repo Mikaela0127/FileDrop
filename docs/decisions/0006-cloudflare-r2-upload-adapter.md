@@ -39,7 +39,8 @@ object's size. Before a file becomes downloadable, a later completion use case
 must inspect the R2 object with `HeadObject` and compare its byte count and
 content type with the `PENDING` database record.
 
-R2 supports a single PUT object up to 5 GiB, so the 3 GB MVP limit is technically
-valid. A failed single PUT restarts from zero, however, and Cloudflare recommends
-multipart upload for large files. Multipart upload remains a post-MVP reliability
-improvement rather than changing today's application boundary.
+R2 supports a single PUT object up to 5 GiB, so the 3 GB v1.0 limit is
+technically valid. A failed single PUT restarts from zero, however, and
+Cloudflare recommends multipart upload for large files. Multipart upload remains
+a future reliability improvement rather than changing today's application
+boundary.

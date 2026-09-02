@@ -5,11 +5,11 @@
 
 ## Context
 
-The MVP must let one owner upload without publishing anonymous storage access.
-Introducing a user table, email verification, OAuth, or a hosted identity
-provider would add account lifecycle work that the current single-owner use case
-does not need. Storing a plaintext deployment password or sending it with every
-upload request would be unsafe.
+FileDrop v1.0 must let one owner upload without publishing anonymous storage
+access. Introducing a user table, email verification, OAuth, or a hosted
+identity provider would add account lifecycle work that the current single-owner
+use case does not need. Storing a plaintext deployment password or sending it
+with every upload request would be unsafe.
 
 The design must remain replaceable when FileDrop later permits selected friends
 to upload.

@@ -38,8 +38,8 @@ temporary directory, scans them with redacted output, and removes that directory
 afterward. Local `.env`, dependency, build, and test-output directories remain
 outside the scan because they are not commit candidates.
 
-For a release candidate, start and migrate the disposable local PostgreSQL
-database, install Playwright Chromium, and run `pnpm release:check`. This
+Before a release, start and migrate the disposable local PostgreSQL database,
+install Playwright Chromium, and run `pnpm release:check`. This
 aggregates the checks above with Prisma validation, the dependency audit, and
 browser E2E coverage. It rejects a remote `DATABASE_URL` before running the
 data-mutating integration suite, including PostgreSQL connection strings that

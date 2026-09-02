@@ -1,9 +1,9 @@
 # Production deployment runbook
 
-Day 12 prepares the provider-neutral FileDrop application for its initial
-Vercel + Neon + Cloudflare R2 deployment. This managed arrangement does not
-require maintaining a virtual server: Vercel runs the Next.js application and
-daily scheduler, Neon runs PostgreSQL, and R2 stores file bytes.
+FileDrop supports a managed Vercel + Neon + Cloudflare R2 deployment. This
+arrangement does not require maintaining a virtual server: Vercel runs the
+Next.js application and daily scheduler, Neon runs PostgreSQL, and R2 stores
+file bytes.
 
 This document is an execution checklist, not a place to record real credentials.
 Keep provider values only in their encrypted settings and an ignored local

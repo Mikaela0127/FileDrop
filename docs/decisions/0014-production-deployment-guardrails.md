@@ -40,7 +40,7 @@ sniffing, enables HSTS in production, and limits content and network sources. R2
 is allowed only as an HTTPS connection destination so the direct-upload
 architecture continues to work.
 
-Use a static Content Security Policy for the MVP. Next.js hydration currently
+Use a static Content Security Policy for v1.0. Next.js hydration currently
 requires inline scripts and styles under this static policy, so `script-src` and
 `style-src` retain `'unsafe-inline'`. A nonce-based strict policy would remove
 that allowance but force dynamic rendering for every protected page and reduce

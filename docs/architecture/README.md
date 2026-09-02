@@ -204,8 +204,8 @@ Backend confidence remains separate:
 Vitest application/HTTP tests + PostgreSQL repository integration tests
 ```
 
-Day 11 treats accessibility as part of application behavior rather than visual
-polish. Every page exposes a unique heading and title, a keyboard skip link
+FileDrop treats accessibility as part of application behavior rather than
+visual polish. Every page exposes a unique heading and title, a keyboard skip link
 targets the single main landmark, status changes use live regions, focus moves
 to the one-time upload result, and global focus indicators remain visible.
 Motion-heavy transitions are suppressed when the operating system requests
@@ -374,13 +374,13 @@ The initial `files` table stores identifiers, a SHA-256 share-token hash, the R2
 object key, user-visible metadata, lifecycle timestamps, and download counters.
 The raw share token and file bytes are never stored in PostgreSQL.
 
-Day 9 writes the existing `download_count` and `last_downloaded_at` columns
-through a dedicated application port. No schema migration is necessary. The
-same Prisma adapter implements the general metadata, cleanup, and download
-statistics ports, while each use case depends only on the narrow interface it
-needs.
+Download authorization writes use the existing `download_count` and
+`last_downloaded_at` columns through a dedicated application port. No schema
+migration is necessary. The same Prisma adapter implements the general
+metadata, cleanup, and download statistics ports, while each use case depends
+only on the narrow interface it needs.
 
-Day 10 reads a data-minimized projection through
+The owner catalog reads a data-minimized projection through
 `OwnerFileCatalogRepository`. It reuses the same Prisma adapter and existing
 schema, but neither the application result nor the owner API contains object
 storage identifiers or token hashes. No migration is required.
@@ -395,9 +395,9 @@ PENDING ──> READY ──> EXPIRED ──> DELETING ──> DELETED
     └──────────────> EXPIRED
 ```
 
-The Day 6 upload transitions and Day 8 deletion transitions use conditional
-`UPDATE` operations as compare-and-set boundaries. A delayed or duplicated
-request cannot overwrite a terminal state or a newer deletion lease.
+Upload and deletion transitions use conditional `UPDATE` operations as
+compare-and-set boundaries. A delayed or duplicated request cannot overwrite a
+terminal state or a newer deletion lease.
 
 The `(status, expires_at)` index supports cleanup scans. PostgreSQL check
 constraints independently enforce the 3 GB limit, non-negative statistics, and
@@ -408,11 +408,11 @@ instance starts. Invalid application or database URLs prevent the instance from
 accepting requests; optional secret groups are validated as soon as they are
 configured.
 
-## Confirmed MVP constraints
+## Version 1.0 constraints
 
 - Only the owner can upload.
 - A single file is limited to 3,000,000,000 bytes (3 GB decimal).
-- Uploads use a single presigned PUT request in the MVP.
+- Uploads use a single presigned PUT request in v1.0.
 - Failed uploads restart from the beginning; multipart resume is deferred.
 - Files expire after 1 hour, 24 hours, 3 days, or 7 days.
 - Download links use cryptographically random, non-sequential tokens.
