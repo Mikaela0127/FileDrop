@@ -4,7 +4,7 @@ FileDrop is a private, expiring file-transfer service built as a full-stack
 engineering portfolio project. File metadata lives in PostgreSQL; file bytes live
 in private S3-compatible object storage.
 
-The application is under active development. Day 12 provides a complete
+The application is under active development. Day 13 provides a complete
 expiring transfer path with a private owner activity view: the owner uploads
 directly to R2, FileDrop verifies the stored object, an opaque public link
 resolves eligible files to a five-minute R2 download authorization, each
@@ -15,6 +15,9 @@ screen-reader status announcements, reduced-motion support, and Playwright
 coverage at desktop and mobile Chromium viewports. Production deployment now
 fails closed on incomplete or insecure settings, applies global browser security
 headers, pins CI actions, and has a repeatable deployment and rollback runbook.
+A minimal public health endpoint and a credential-free production smoke command
+now verify deployed liveness, security headers, and anonymous authorization
+boundaries without mutating production or disclosing dependency details.
 
 ## Requirements
 
@@ -194,6 +197,7 @@ pnpm typecheck
 pnpm test
 pnpm test:integration
 pnpm deploy:check       # Requires a complete production-grade environment
+pnpm smoke:production   # Requires FILEDROP_SMOKE_BASE_URL after deployment
 pnpm build
 pnpm exec playwright install chromium
 pnpm test:e2e
@@ -241,10 +245,12 @@ and credential review checklist.
 - [ADR 0012: Expose a bounded owner-only file catalog](docs/decisions/0012-owner-file-catalog.md)
 - [ADR 0013: Test the owner browser journey at deterministic boundaries](docs/decisions/0013-browser-contract-e2e.md)
 - [ADR 0014: Fail closed before production deployment](docs/decisions/0014-production-deployment-guardrails.md)
+- [ADR 0015: Separate public liveness from read-only smoke tests](docs/decisions/0015-public-liveness-and-read-only-smoke-tests.md)
 - [Cloudflare R2 setup](docs/deployment/cloudflare-r2.md)
 - [Owner authentication setup](docs/deployment/owner-authentication.md)
 - [Scheduled cleanup setup](docs/deployment/scheduled-cleanup.md)
 - [Production deployment runbook](docs/deployment/production-readiness.md)
+- [Production monitoring and first response](docs/operations/production-monitoring.md)
 - [Browser E2E testing](docs/testing/browser-e2e.md)
 
 ## Confirmed MVP policy
@@ -269,3 +275,6 @@ then exercises the complete owner UI contract in desktop and mobile Chromium.
 Day 12 adds production-only configuration validation, global browser security
 headers, immutable CI action references, automated dependency update proposals,
 database-aware deployment gates, and an end-to-end production runbook.
+Day 13 adds a dependency-free public liveness contract, an anonymous read-only
+production smoke command, and monitoring/incident guidance while keeping the
+credentialed state-changing deployment test explicit and manual.

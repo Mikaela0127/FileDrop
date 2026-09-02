@@ -90,8 +90,21 @@ signed URLs; a public bucket or public R2 development URL defeats that boundary.
 
 ## 5. Post-deployment smoke test
 
-Use a small, disposable, non-sensitive file and verify this sequence from a
-private browser window:
+Start with the anonymous, non-mutating checks:
+
+```bash
+FILEDROP_SMOKE_BASE_URL=https://filedrop.mikaela79.com pnpm smoke:production
+```
+
+This verifies application liveness, public security headers, anonymous access
+boundaries, and unknown-link handling without using credentials or changing
+production state. See the
+[production monitoring guide](../operations/production-monitoring.md) for its
+exact scope and failure workflow.
+
+Then use a small, disposable, non-sensitive file in a private browser window to
+verify the state-changing sequence that an anonymous smoke test deliberately
+cannot cover:
 
 1. `/upload` redirects or prompts an unauthenticated visitor to sign in.
 2. An incorrect owner passphrase returns a generic failure without internal
@@ -128,6 +141,6 @@ upload personal documents merely to prove the deployment works.
 - If R2 deletion fails, preserve the PostgreSQL tombstone/retry state and rerun
   cleanup. Do not manually mark an object deleted while its bytes still exist.
 
-After the smoke test passes, record only the deployment URL, application version,
-test time, and pass/fail result. Never record bearer links or provider values in
-an issue or public repository.
+After both smoke phases pass, record only the deployment URL, application
+version, test time, and pass/fail result. Never record bearer links or provider
+values in an issue or public repository.

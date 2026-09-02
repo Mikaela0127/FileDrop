@@ -259,6 +259,37 @@ remain backward compatible. Production credentials are scoped only to the
 production environment; untrusted previews fail closed unless given isolated
 resources.
 
+## Production operations boundary
+
+```text
+External monitor ── GET /api/health ──> fixed liveness JSON
+                                           (no Neon/R2 query)
+
+Operator smoke command ── anonymous GET only ──> deployed FileDrop
+       ├── liveness + browser security headers
+       ├── owner/session/cleanup authorization boundaries
+       └── random unknown share token ──> PostgreSQL miss, no redirect
+
+Credentialed upload/download/cleanup ──> explicit disposable manual test
+```
+
+Liveness, anonymous deployment wiring, and state-changing end-to-end behavior
+are separate signals. The public health route reveals no version, configuration,
+provider, or dependency status and creates no database or R2 load. It can show
+that the Next.js application is reachable even while Neon or R2 is degraded.
+
+The operator smoke command accepts only an exact public HTTPS origin, follows no
+redirects, sends no cookies or authorization values, and never mutates
+production. It checks anonymous security boundaries and initializes the real
+download composition through a random non-existent token without receiving a
+storage capability. Response bodies and upstream exception details are excluded
+from failure output.
+
+The first release still requires a controlled manual test for login, direct R2
+upload, verification, real download, statistics, and cleanup. Automating that
+credentialed mutation path belongs in a future isolated staging environment,
+not public CI against production.
+
 ## Scheduled cleanup boundary
 
 ```text
