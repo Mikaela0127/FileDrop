@@ -21,6 +21,7 @@ and then run `pnpm hooks:install`.
 
 ```bash
 pnpm security:secrets
+pnpm security:working-tree
 pnpm security:audit
 pnpm format:check
 pnpm lint
@@ -29,6 +30,21 @@ pnpm test
 pnpm test:integration
 pnpm build
 ```
+
+`security:secrets` examines committed Git history, while
+`security:working-tree` examines tracked files and untracked files that are not
+excluded by `.gitignore`. It stages copies in a uniquely named operating-system
+temporary directory, scans them with redacted output, and removes that directory
+afterward. Local `.env`, dependency, build, and test-output directories remain
+outside the scan because they are not commit candidates.
+
+For a release candidate, start and migrate the disposable local PostgreSQL
+database, install Playwright Chromium, and run `pnpm release:check`. This
+aggregates the checks above with Prisma validation, the dependency audit, and
+browser E2E coverage. It rejects a remote `DATABASE_URL` before running the
+data-mutating integration suite, including PostgreSQL connection strings that
+try to override a loopback authority with a driver-level `host` query
+parameter.
 
 Also inspect `git diff --cached` for personal information that a secret scanner
 cannot reliably identify, including real names, email addresses, private domain

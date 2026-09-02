@@ -4,7 +4,10 @@ FileDrop is a private, expiring file-transfer service built as a full-stack
 engineering portfolio project. File metadata lives in PostgreSQL; file bytes live
 in private S3-compatible object storage.
 
-The application is under active development. Day 13 provides a complete
+The MVP codebase is release-ready but has not yet been connected to the owner's
+production cloud accounts. Day 14 closes the implementation phase with a
+local-only release gate, public contribution and private vulnerability-reporting
+guidance, and an explicit launch checklist. The application provides a complete
 expiring transfer path with a private owner activity view: the owner uploads
 directly to R2, FileDrop verifies the stored object, an opaque public link
 resolves eligible files to a five-minute R2 download authorization, each
@@ -198,10 +201,12 @@ pnpm test
 pnpm test:integration
 pnpm deploy:check       # Requires a complete production-grade environment
 pnpm smoke:production   # Requires FILEDROP_SMOKE_BASE_URL after deployment
+pnpm release:check      # Complete local release gate; refuses a remote database
 pnpm build
 pnpm exec playwright install chromium
 pnpm test:e2e
 pnpm security:secrets
+pnpm security:working-tree
 pnpm security:audit
 ```
 
@@ -251,7 +256,10 @@ and credential review checklist.
 - [Scheduled cleanup setup](docs/deployment/scheduled-cleanup.md)
 - [Production deployment runbook](docs/deployment/production-readiness.md)
 - [Production monitoring and first response](docs/operations/production-monitoring.md)
+- [MVP release checklist](docs/deployment/release-checklist.md)
 - [Browser E2E testing](docs/testing/browser-e2e.md)
+- [Contribution guide](CONTRIBUTING.md)
+- [Private vulnerability reporting policy](SECURITY.md)
 
 ## Confirmed MVP policy
 
@@ -278,3 +286,9 @@ database-aware deployment gates, and an end-to-end production runbook.
 Day 13 adds a dependency-free public liveness contract, an anonymous read-only
 production smoke command, and monitoring/incident guidance while keeping the
 credentialed state-changing deployment test explicit and manual.
+Day 14 packages the MVP as a release candidate: one local-only command exercises
+the complete quality and security gate, the repository documents safe
+contribution and private vulnerability reporting, and a final checklist keeps
+code verification separate from credentialed cloud provisioning and production
+acceptance. Actual publication still requires the owner's Vercel, Neon,
+Cloudflare, DNS, and secret configuration.

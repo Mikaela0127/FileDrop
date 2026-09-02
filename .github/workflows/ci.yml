@@ -68,6 +68,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Audit high-severity dependency advisories
+        run: pnpm security:audit
+
       - name: Validate database schema
         run: pnpm db:validate
 
