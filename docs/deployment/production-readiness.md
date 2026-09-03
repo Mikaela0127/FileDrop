@@ -12,11 +12,16 @@ Keep provider values only in their encrypted settings and an ignored local
 ## 1. Provision isolated production resources
 
 1. Create a Neon project and database dedicated to FileDrop.
-2. Select Neon's pooled connection string for the serverless application and
-   keep its TLS parameters, including `sslmode=require` or a stricter mode.
-3. Create a private R2 bucket and a bucket-scoped Object Read & Write token by
+2. Copy both connection strings from Neon's **Connect** dialog:
+   - enable connection pooling and save that URL as `DATABASE_URL` for runtime
+     application queries;
+   - disable connection pooling and save that URL as `DIRECT_URL` for Prisma
+     migrations during deployment.
+3. Keep the TLS parameters on both URLs, including `sslmode=require` or a
+   stricter mode.
+4. Create a private R2 bucket and a bucket-scoped Object Read & Write token by
    following [the R2 guide](cloudflare-r2.md).
-4. Import the public GitHub repository into Vercel. Do not expose provider
+5. Import the public GitHub repository into Vercel. Do not expose provider
    credentials to pull requests from forks.
 
 Do not reuse the local Docker database password, an R2 token from another
@@ -29,7 +34,8 @@ Add all of the following under Vercel's **Production** environment scope:
 | Variable               | Production rule                                                                                 |
 | ---------------------- | ----------------------------------------------------------------------------------------------- |
 | `APP_URL`              | Exact public HTTPS origin, currently `https://filedrop.mikaela79.com`; no path or trailing data |
-| `DATABASE_URL`         | Remote PostgreSQL URL containing user, password, database, and required TLS mode                |
+| `DATABASE_URL`         | Pooled Neon URL for runtime queries, containing credentials, database, and required TLS mode    |
+| `DIRECT_URL`           | Direct Neon URL for Prisma migrations, containing credentials, database, and required TLS mode  |
 | `SESSION_SECRET`       | Independent random value of at least 32 characters                                              |
 | `UPLOAD_PASSWORD_HASH` | FileDrop scrypt hash generated from the private owner passphrase                                |
 | `CRON_SECRET`          | A different random value of at least 32 characters                                              |
@@ -54,10 +60,16 @@ The committed Vercel build command runs these steps in order:
 ```text
 production environment validation
   -> Prisma Client generation
-  -> committed database migrations
+  -> committed database migrations through DIRECT_URL
   -> production Next.js build
   -> publish only after every step succeeds
 ```
+
+The deployed application uses only pooled `DATABASE_URL` for normal queries.
+Prisma CLI commands prefer `DIRECT_URL`; local development falls back to
+`DATABASE_URL` when `DIRECT_URL` is absent so existing disposable environments
+remain usable. Production validation requires both values and rejects loopback,
+non-TLS, credential-free, or query-level host override URLs.
 
 Run the same environment contract locally only when a complete non-production
 fixture or a secure production shell is already configured:

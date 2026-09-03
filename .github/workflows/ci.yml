@@ -34,6 +34,7 @@ jobs:
     env:
       APP_URL: http://localhost:3000
       DATABASE_URL: postgresql://filedrop:filedrop@localhost:5432/filedrop
+      DIRECT_URL: postgresql://filedrop:filedrop@localhost:5432/filedrop
 
     services:
       postgres:
@@ -99,7 +100,8 @@ jobs:
         run: pnpm deploy:check
         env:
           APP_URL: https://filedrop.example.test
-          DATABASE_URL: postgresql://filedrop:not-a-real-password@db.example.test/filedrop?sslmode=require
+          DATABASE_URL: postgresql://filedrop:not-a-real-password@db-pooler.example.test/filedrop?sslmode=require
+          DIRECT_URL: postgresql://filedrop:not-a-real-password@db.example.test/filedrop?sslmode=require
           SESSION_SECRET: not-a-real-session-fixture-value-for-ci
           UPLOAD_PASSWORD_HASH: $scrypt$ln=16,r=8,p=1$AwMDAwMDAwMDAwMDAwMDAw$BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ
           CRON_SECRET: not-a-real-cleanup-fixture-value-for-ci

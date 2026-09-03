@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { isOwnerPasswordHash } from "../security/owner-password-hash-format";
 
-const optionalString = (schema: z.ZodString) =>
+const optionalString = <Schema extends z.ZodType<string>>(schema: Schema) =>
   z.preprocess(
     (value) => (value === "" ? undefined : value),
     schema.optional(),
@@ -23,12 +23,13 @@ const appUrlSchema = z
     "APP_URL must use http or https",
   );
 
-const databaseUrlSchema = z
-  .url("DATABASE_URL must be a valid URL")
-  .refine(
-    (value) => usesProtocol(value, ["postgres:", "postgresql:"]),
-    "DATABASE_URL must use the postgres or postgresql protocol",
-  );
+const databaseUrlSchema = (variableName: "DATABASE_URL" | "DIRECT_URL") =>
+  z
+    .url(`${variableName} must be a valid URL`)
+    .refine(
+      (value) => usesProtocol(value, ["postgres:", "postgresql:"]),
+      `${variableName} must use the postgres or postgresql protocol`,
+    );
 
 const r2AccountIdSchema = z
   .string()
@@ -49,7 +50,8 @@ const r2BucketNameSchema = z
 export const serverEnvSchema = z
   .object({
     APP_URL: appUrlSchema,
-    DATABASE_URL: databaseUrlSchema,
+    DATABASE_URL: databaseUrlSchema("DATABASE_URL"),
+    DIRECT_URL: optionalString(databaseUrlSchema("DIRECT_URL")),
     SESSION_SECRET: optionalString(
       z.string().min(32, "SESSION_SECRET must contain at least 32 characters"),
     ),

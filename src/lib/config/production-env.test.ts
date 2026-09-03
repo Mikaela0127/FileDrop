@@ -7,6 +7,8 @@ const ownerPasswordHash = `$scrypt$ln=16,r=8,p=1$${Buffer.alloc(16, 3).toString(
 const validProductionEnvironment = {
   APP_URL: "https://filedrop.example.test",
   DATABASE_URL:
+    "postgresql://filedrop:fixture-password@db-pooler.example.test/filedrop?sslmode=require",
+  DIRECT_URL:
     "postgresql://filedrop:fixture-password@db.example.test/filedrop?sslmode=require",
   SESSION_SECRET: "session-fixture-value-".repeat(2),
   UPLOAD_PASSWORD_HASH: ownerPasswordHash,
@@ -26,6 +28,7 @@ describe("production environment", () => {
 
   it.each([
     "SESSION_SECRET",
+    "DIRECT_URL",
     "UPLOAD_PASSWORD_HASH",
     "CRON_SECRET",
     "R2_ACCOUNT_ID",
@@ -59,6 +62,7 @@ describe("production environment", () => {
     "postgresql://filedrop:fixture-password@localhost/filedrop?sslmode=require",
     "postgresql://filedrop:fixture-password@db.example.test/filedrop",
     "postgresql://filedrop:fixture-password@db.example.test/filedrop?sslmode=disable",
+    "postgresql://filedrop:fixture-password@db.example.test/filedrop?sslmode=require&sslmode=disable",
     "postgresql://db.example.test/filedrop?sslmode=require",
   ])("rejects an unsafe production database URL: %s", (databaseUrl) => {
     expect(() =>
@@ -67,6 +71,32 @@ describe("production environment", () => {
         DATABASE_URL: databaseUrl,
       }),
     ).toThrow("DATABASE_URL");
+  });
+
+  it.each([
+    "postgresql://filedrop:fixture-password@localhost/filedrop?sslmode=require",
+    "postgresql://filedrop:fixture-password@db.example.test/filedrop",
+    "postgresql://filedrop:fixture-password@db.example.test/filedrop?sslmode=disable",
+    "postgresql://filedrop:fixture-password@db.example.test/filedrop?sslmode=require&sslmode=disable",
+    "postgresql://db.example.test/filedrop?sslmode=require",
+    "postgresql://filedrop:fixture-password@db.example.test/filedrop?sslmode=require&host=localhost",
+  ])("rejects an unsafe direct migration URL: %s", (directUrl) => {
+    expect(() =>
+      parseProductionEnv({
+        ...validProductionEnvironment,
+        DIRECT_URL: directUrl,
+      }),
+    ).toThrow("DIRECT_URL");
+  });
+
+  it("rejects runtime database host query overrides", () => {
+    expect(() =>
+      parseProductionEnv({
+        ...validProductionEnvironment,
+        DATABASE_URL:
+          "postgresql://filedrop:fixture-password@db-pooler.example.test/filedrop?sslmode=require&host=localhost",
+      }),
+    ).toThrow("DATABASE_URL must not override the database host");
   });
 
   it("requires independent session and cleanup secrets", () => {
@@ -85,6 +115,7 @@ describe("production environment", () => {
       parseProductionEnv({
         ...validProductionEnvironment,
         DATABASE_URL: `postgresql://filedrop:${credentialValue}@localhost/filedrop`,
+        DIRECT_URL: `postgresql://filedrop:${credentialValue}@localhost/filedrop`,
         R2_SECRET_ACCESS_KEY: credentialValue,
       });
       throw new Error("Expected production environment parsing to fail");

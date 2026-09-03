@@ -191,6 +191,9 @@ pnpm db:studio          # Inspect local data in Prisma Studio
 
 Generated Prisma Client files and `.env` are deliberately excluded from Git.
 Run `pnpm db:generate` after installing dependencies or changing the schema.
+In production, `DATABASE_URL` is the pooled runtime connection and `DIRECT_URL`
+is the direct Prisma migration connection. Local Prisma commands fall back to
+`DATABASE_URL` if `DIRECT_URL` is not configured.
 
 ## Quality checks
 
@@ -252,6 +255,7 @@ and credential review checklist.
 - [ADR 0013: Test the owner browser journey at deterministic boundaries](docs/decisions/0013-browser-contract-e2e.md)
 - [ADR 0014: Fail closed before production deployment](docs/decisions/0014-production-deployment-guardrails.md)
 - [ADR 0015: Separate public liveness from read-only smoke tests](docs/decisions/0015-public-liveness-and-read-only-smoke-tests.md)
+- [ADR 0016: Separate runtime and migration database connections](docs/decisions/0016-separate-runtime-and-migration-database-connections.md)
 - [Cloudflare R2 setup](docs/deployment/cloudflare-r2.md)
 - [Owner authentication setup](docs/deployment/owner-authentication.md)
 - [Scheduled cleanup setup](docs/deployment/scheduled-cleanup.md)
@@ -273,7 +277,7 @@ and credential review checklist.
 
 ## Release
 
-`v1.0.0` is the first stable source release of FileDrop. See the
+`v1.0.1` is the current stable source release of FileDrop. See the
 [changelog](CHANGELOG.md) for its contents and the
 [release checklist](docs/deployment/release-checklist.md) for production rollout.
 Running an instance requires operator-owned PostgreSQL, private S3-compatible

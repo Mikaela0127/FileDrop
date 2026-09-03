@@ -5,7 +5,7 @@ import { parseProductionEnv } from "../src/lib/config/production-env";
 try {
   parseProductionEnv(process.env);
   process.stdout.write(
-    "Production environment is valid: HTTPS origin, encrypted remote PostgreSQL, owner authentication, cleanup authentication, and R2 are configured.\n",
+    "Production environment is valid: HTTPS origin, pooled runtime PostgreSQL, direct migration PostgreSQL, owner authentication, cleanup authentication, and R2 are configured.\n",
   );
 } catch (error) {
   const message =

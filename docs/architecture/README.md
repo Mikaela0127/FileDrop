@@ -406,7 +406,8 @@ the SHA-256 token-hash format.
 Server environment variables are parsed once when each Next.js Node server
 instance starts. Invalid application or database URLs prevent the instance from
 accepting requests; optional secret groups are validated as soon as they are
-configured.
+configured. Production uses pooled `DATABASE_URL` for application queries and a
+separate direct `DIRECT_URL` for Prisma migrations during deployment.
 
 ## Version 1.0 constraints
 

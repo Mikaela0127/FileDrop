@@ -2,6 +2,18 @@
 
 All notable changes to FileDrop are documented in this file.
 
+## [1.0.1] - 2026-09-03
+
+### Changed
+
+- Separate the pooled runtime `DATABASE_URL` from the direct migration
+  `DIRECT_URL` recommended for serverless Neon deployments.
+- Require and validate both production database connections before a deployment
+  can apply migrations or publish the application.
+- Reject PostgreSQL connection strings that override the authority host or
+  replace the validated TLS mode through query parameters.
+- Document the production database boundary and deployment steps.
+
 ## [1.0.0] - 2026-09-02
 
 The first stable source release of FileDrop.
@@ -26,4 +38,5 @@ This release contains the application and its deployment configuration. Each
 operator must provision and configure their own PostgreSQL database, private R2
 bucket, deployment environment, DNS, and secrets before the service is live.
 
+[1.0.1]: https://github.com/Mikaela0127/FileDrop/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Mikaela0127/FileDrop/releases/tag/v1.0.0

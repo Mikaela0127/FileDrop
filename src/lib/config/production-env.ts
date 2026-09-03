@@ -2,6 +2,7 @@ import type { ServerEnv } from "./server-env-schema";
 import { parseServerEnv } from "./server-env-schema";
 
 const requiredProductionKeys = [
+  "DIRECT_URL",
   "SESSION_SECRET",
   "UPLOAD_PASSWORD_HASH",
   "CRON_SECRET",
@@ -55,24 +56,36 @@ function validateProductionAppUrl(value: string): string[] {
   return issues;
 }
 
-function validateProductionDatabaseUrl(value: string): string[] {
+function validateProductionDatabaseUrl(
+  value: string,
+  variableName: "DATABASE_URL" | "DIRECT_URL",
+): string[] {
   const url = new URL(value);
   const issues: string[] = [];
 
   if (!url.hostname || isLoopbackHostname(url.hostname)) {
-    issues.push("DATABASE_URL must use a non-loopback production host");
+    issues.push(`${variableName} must use a non-loopback production host`);
   }
 
   if (!url.username || !url.password || url.pathname === "/") {
     issues.push(
-      "DATABASE_URL must include a database user, password, and database name",
+      `${variableName} must include a database user, password, and database name`,
     );
   }
 
-  const sslMode = url.searchParams.get("sslmode");
-  if (!sslMode || !["require", "verify-ca", "verify-full"].includes(sslMode)) {
+  if (url.searchParams.has("host")) {
     issues.push(
-      "DATABASE_URL must require TLS with sslmode=require, verify-ca, or verify-full",
+      `${variableName} must not override the database host in query parameters`,
+    );
+  }
+
+  const sslModes = url.searchParams.getAll("sslmode");
+  if (
+    sslModes.length !== 1 ||
+    !["require", "verify-ca", "verify-full"].includes(sslModes[0] ?? "")
+  ) {
+    issues.push(
+      `${variableName} must require TLS with sslmode=require, verify-ca, or verify-full`,
     );
   }
 
@@ -99,7 +112,14 @@ export function parseProductionEnv(
   const parsed = parseServerEnv(environment);
 
   issues.push(...validateProductionAppUrl(parsed.APP_URL));
-  issues.push(...validateProductionDatabaseUrl(parsed.DATABASE_URL));
+  issues.push(
+    ...validateProductionDatabaseUrl(parsed.DATABASE_URL, "DATABASE_URL"),
+  );
+  if (parsed.DIRECT_URL) {
+    issues.push(
+      ...validateProductionDatabaseUrl(parsed.DIRECT_URL, "DIRECT_URL"),
+    );
+  }
 
   if (
     parsed.SESSION_SECRET &&

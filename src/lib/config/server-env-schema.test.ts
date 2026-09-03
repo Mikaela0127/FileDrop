@@ -30,6 +30,22 @@ describe("server environment", () => {
     ).toThrow("DATABASE_URL must use the postgres or postgresql protocol");
   });
 
+  it("validates the optional direct migration URL when configured", () => {
+    expect(() =>
+      parseServerEnv({
+        ...validEnvironment,
+        DIRECT_URL: "mysql://localhost/filedrop",
+      }),
+    ).toThrow("DIRECT_URL must use the postgres or postgresql protocol");
+
+    expect(
+      parseServerEnv({
+        ...validEnvironment,
+        DIRECT_URL: validEnvironment.DATABASE_URL,
+      }),
+    ).toMatchObject({ DIRECT_URL: validEnvironment.DATABASE_URL });
+  });
+
   it("reports a readable error for a malformed application URL", () => {
     expect(() =>
       parseServerEnv({

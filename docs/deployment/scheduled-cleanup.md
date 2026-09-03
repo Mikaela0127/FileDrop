@@ -8,8 +8,9 @@ scoped S3 credentials.
 
 ## Required production values
 
-The deployment must already have `DATABASE_URL` and all four R2 variables. Add a
-separate `CRON_SECRET` with at least 32 characters:
+The deployment must already have runtime `DATABASE_URL`, migration `DIRECT_URL`,
+and all four R2 variables. Add a separate `CRON_SECRET` with at least 32
+characters:
 
 ```bash
 openssl rand -hex 32

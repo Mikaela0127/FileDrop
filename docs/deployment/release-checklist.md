@@ -28,6 +28,8 @@ and Vercel project. Store production values only in each provider's encrypted
 settings.
 
 - [ ] Use independent owner, session, cleanup, database, and storage secrets.
+- [ ] Configure pooled `DATABASE_URL` for runtime and direct `DIRECT_URL` for
+      migrations; require TLS on both.
 - [ ] Keep production values unavailable to untrusted Preview deployments.
 - [ ] Keep the R2 bucket private and allow browser PUT requests only from the
       exact FileDrop origin.

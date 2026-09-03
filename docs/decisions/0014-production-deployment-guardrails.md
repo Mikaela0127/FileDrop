@@ -24,15 +24,17 @@ Keep the flexible base environment parser for local development and add a
 separate production contract. Before a Vercel build can publish, it must require:
 
 - an exact non-loopback HTTPS `APP_URL` origin;
-- a remote PostgreSQL URL with credentials, database name, and required TLS;
+- pooled runtime and direct migration PostgreSQL URLs with credentials, database
+  names, and required TLS;
 - complete owner authentication, cleanup authentication, and private R2 groups;
 - different values for the session-signing and cleanup bearer secrets.
 
 Validation errors name only the failed variables and rules. They never echo
-configuration values. The Vercel build then generates the Prisma Client, applies
-committed migrations, and builds the application. Preview environments receive
-no production credentials by default and therefore fail closed until explicitly
-given isolated preview resources.
+configuration values. Database URLs may not override their authority host with
+a query parameter. The Vercel build then generates the Prisma Client, applies
+committed migrations through the direct connection, and builds the application.
+Preview environments receive no production credentials by default and therefore
+fail closed until explicitly given isolated preview resources.
 
 Apply a common response-header policy through Next.js configuration. It disables
 framing and unused browser capabilities, suppresses referrers, prevents MIME
