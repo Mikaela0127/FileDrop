@@ -10,6 +10,8 @@ export interface OwnerFileCatalogItem {
   downloadCount: number;
   lastDownloadedAt: Date | null;
   createdAt: Date;
+  canRecoverShareLink?: boolean;
+  manuallyExpiredAt?: Date | null;
 }
 
 export interface OwnerFileCatalogRepository {

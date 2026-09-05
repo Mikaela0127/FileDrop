@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { FileManagementActions } from "./file-management-actions";
 
 type FileStatus =
   "PENDING" | "READY" | "FAILED" | "EXPIRED" | "DELETING" | "DELETED";
@@ -16,6 +17,8 @@ interface CatalogFile {
   downloadCount: number;
   lastDownloadedAt: string | null;
   createdAt: string;
+  canRecoverShareLink?: boolean;
+  manuallyExpiredAt?: string | null;
 }
 
 interface CatalogResponse {
@@ -388,6 +391,16 @@ export function OwnerFileCatalog() {
                       </dd>
                     </div>
                   </dl>
+                  {file.manuallyExpiredAt && (
+                    <p className="mt-3 text-xs text-slate-600">
+                      Manually expired: {formatDate(file.manuallyExpiredAt)}
+                    </p>
+                  )}
+                  <FileManagementActions
+                    file={file}
+                    status={status}
+                    onChanged={refreshCatalog}
+                  />
                 </li>
               );
             })}
@@ -396,9 +409,10 @@ export function OwnerFileCatalog() {
       </div>
 
       <p className="rounded-2xl bg-slate-100 px-5 py-4 text-xs leading-5 text-slate-600">
-        Existing share URLs are intentionally absent. FileDrop stores only a
-        SHA-256 token hash, so the original bearer link can be copied only when
-        an upload finishes and cannot be reconstructed from PostgreSQL.
+        Share links are retrieved only when requested by the owner. Older files
+        need a confirmed one-time replacement. Deleting a record also removes
+        its statistics from this recent-record summary; operational logs are
+        retained separately.
       </p>
     </div>
   );

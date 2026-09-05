@@ -7,6 +7,20 @@ datasource db {
   provider = "postgresql"
 }
 
+model OperationalLog {
+  id String @id @default(uuid()) @db.Uuid
+  time DateTime @db.Timestamptz(3)
+  level String @db.VarChar(8)
+  event String @db.VarChar(32)
+  requestId String @map("request_id") @db.Uuid
+  payload Json @db.JsonB
+
+  @@index([time, id])
+  @@index([level, time, id])
+  @@index([requestId])
+  @@map("operational_logs")
+}
+
 enum FileStatus {
   PENDING
   READY
@@ -19,6 +33,8 @@ enum FileStatus {
 model File {
   id               String     @id @default(uuid()) @db.Uuid
   shareTokenHash   String     @unique @map("share_token_hash") @db.Char(64)
+  shareTokenCiphertext String? @map("share_token_ciphertext") @db.Text
+  manuallyExpiredAt DateTime? @map("manually_expired_at") @db.Timestamptz(3)
   objectKey        String     @unique @map("object_key") @db.VarChar(1024)
   originalName     String     @map("original_name") @db.VarChar(255)
   contentType      String     @map("content_type") @db.VarChar(255)

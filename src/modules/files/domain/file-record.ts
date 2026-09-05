@@ -12,6 +12,8 @@ export type FileStatus = (typeof FILE_STATUSES)[number];
 export interface FileRecord {
   id: string;
   shareTokenHash: string;
+  shareTokenCiphertext?: string | null;
+  manuallyExpiredAt?: Date | null;
   objectKey: string;
   originalName: string;
   contentType: string;

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logEvent } from "../../../../lib/operations/logger";
 
 import { DownloadResolutionError } from "../../application/resolve-download";
 import type { ResolveDownloadResult } from "../../application/resolve-download";
@@ -56,6 +57,7 @@ export function createPublicDownloadHandler(resolveDownload: ResolveDownload) {
         }
       }
 
+      logEvent("download.resolve", { error });
       return downloadUnavailableResponse();
     }
   };

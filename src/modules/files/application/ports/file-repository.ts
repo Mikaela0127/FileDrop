@@ -2,6 +2,7 @@ import type { FileRecord, FileStatus } from "../../domain/file-record";
 
 export interface CreateFileRecordInput {
   shareTokenHash: string;
+  shareTokenCiphertext?: string;
   objectKey: string;
   originalName: string;
   contentType: string;

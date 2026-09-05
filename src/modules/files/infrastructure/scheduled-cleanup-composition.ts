@@ -8,6 +8,8 @@ import {
 } from "../../../lib/config/cleanup-config";
 import { getServerEnv } from "../../../lib/config/server-env";
 import { prisma } from "../../../lib/database/prisma";
+import { logEvent } from "../../../lib/operations/logger";
+import { logRepository } from "../../logs/infrastructure/log-composition";
 import { createCleanupExpiredFiles } from "../application/cleanup-expired-files";
 import {
   createScheduledCleanupHandler,
@@ -22,11 +24,18 @@ type CleanupExpiredFiles = ReturnType<typeof createCleanupExpiredFiles>;
 let scheduledCleanupHandler: ScheduledCleanupHandler | undefined;
 let cleanupExpiredFiles: CleanupExpiredFiles | undefined;
 
-function runCleanup() {
+async function runCleanup() {
+  try {
+    await logRepository.prune();
+  } catch {
+    console.warn("FILEDROP_LOG_RETENTION_UNAVAILABLE");
+  }
   if (!cleanupExpiredFiles) {
     cleanupExpiredFiles = createCleanupExpiredFiles({
       fileCleanupRepository: new PrismaFileRepository(prisma),
       objectStore: getR2ObjectStore(),
+      onFailure: (fileId, error) =>
+        logEvent("cleanup.object", { fileId, error }),
     });
   }
 

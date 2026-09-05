@@ -5,10 +5,11 @@ links. It keeps file metadata in PostgreSQL and file bytes in a private
 S3-compatible object store, so application servers never proxy large uploads or
 downloads.
 
-Version 1.0 provides an owner-authenticated upload workflow, direct Cloudflare
+FileDrop provides an owner-authenticated upload workflow, direct Cloudflare
 R2 transfers for files up to 3 GB, opaque public download links, configurable
 expiry, automatic cleanup, download authorization statistics, and a responsive
-owner activity view. The repository also includes production configuration
+owner management interface with recoverable links, confirmed manual expiry and
+record deletion. The repository also includes structured diagnostic logs, production configuration
 validation, browser security headers, CI, release checks, health monitoring,
 smoke tests, and deployment and rollback documentation.
 
@@ -20,6 +21,8 @@ smoke tests, and deployment and rollback documentation.
 - PostgreSQL-backed metadata, lifecycle state, and download statistics
 - Expiry choices from one hour to seven days with retryable scheduled deletion
 - Responsive, keyboard-accessible owner interface
+- Retrieve share links, manually expire files, and delete expired records with confirmation
+- Owner-visible, privacy-filtered diagnostic logs with filters, pagination and JSONL export
 - Unit, integration, and browser end-to-end test coverage
 - Production guardrails for secrets, dependencies, migrations, and deployment
 
@@ -91,7 +94,8 @@ only in an `HttpOnly`, `SameSite=Strict` cookie.
 
 Add the four private R2 values described in
 [the R2 setup guide](docs/deployment/cloudflare-r2.md) to the ignored `.env`
-file, configure bucket CORS, restart the development server, sign in, and open
+file, configure `SHARE_TOKEN_KEYRING` using the
+[management upgrade guide](docs/deployment/file-management-upgrade.md), configure bucket CORS, restart the development server, sign in, and open
 <http://localhost:3000/upload>.
 
 The upload endpoints are:
@@ -116,7 +120,9 @@ The public download endpoint is:
   when the file expires sooner and requests an attachment filename without
   proxying bytes through Next.js.
 
-The raw token and presigned URL are never stored. Public download responses use
+Share tokens are stored only as a SHA-256 lookup hash and authenticated AES-256-GCM
+ciphertext; the independent decryption key lives outside PostgreSQL. Presigned URLs
+are never stored. Public download responses use
 `Cache-Control: no-store` and `Referrer-Policy: no-referrer`. Treat every share
 link as a password: anyone who possesses it can download until file expiry.
 
@@ -135,8 +141,29 @@ The owner catalog is available at <http://localhost:3000/files> and uses:
   records, and return only the metadata used by the management interface.
 
 The response is uncached and omits the share-token hash and private R2 object
-key. Existing share URLs cannot be listed because FileDrop intentionally never
-stores their raw bearer tokens; copy the URL when an upload completes.
+key and ciphertext. Links are retrieved separately, only after owner authentication:
+
+- `POST /api/files/:fileId/share` — retrieve the same active share URL. Legacy
+  hash-only files require `{ "confirmed": true }` once to replace the lost link.
+- `POST /api/files/:fileId/expire` — confirm manual expiry without changing the
+  original scheduled expiry timestamp.
+- `DELETE /api/files/:fileId` — confirm deletion of an expired record. R2 deletion
+  must succeed before metadata is removed; storage failures retain a retryable record.
+
+All management requests require an exact same-origin header and strict JSON.
+Expiry and deletion require `{ "confirmed": true }` in addition to the UI dialog.
+Deleting records also removes their per-file statistics from the recent-record summary.
+Physical deletion waits until at least 30 minutes after creation (upload URL lifetime
+plus a cleanup safety buffer). It cannot forcibly stop an already-running transfer.
+
+See the [upgrade and rollback guide](docs/deployment/file-management-upgrade.md)
+before deploying this change, and the [diagnostic log guide](docs/operations/diagnostic-logs.md)
+for retrieving safe troubleshooting output.
+
+Open **File activity → View owner logs** to inspect recent application errors and
+management operations. The owner-only viewer retains up to 7 days / 10,000 entries
+in PostgreSQL and exports the displayed page. Vercel logs remain the fallback for
+database outages and hard crashes; no additional log-service account is required.
 
 ### Configure scheduled cleanup
 

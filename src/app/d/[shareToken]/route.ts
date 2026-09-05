@@ -1,5 +1,6 @@
 import { handlePublicDownload } from "../../../modules/files/infrastructure/public-download-composition";
 
+import { observeRequest } from "../../../lib/operations/logger";
 export const runtime = "nodejs";
 
 interface PublicDownloadRouteContext {
@@ -11,5 +12,7 @@ export async function GET(
   context: PublicDownloadRouteContext,
 ) {
   const { shareToken } = await context.params;
-  return handlePublicDownload(shareToken);
+  return observeRequest("download.resolve", () =>
+    handlePublicDownload(shareToken),
+  );
 }

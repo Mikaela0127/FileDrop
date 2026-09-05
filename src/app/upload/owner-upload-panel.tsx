@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  reportClientFailure,
+  type ClientFailureStage,
+} from "../../lib/operations/client-diagnostics";
 
 import {
   EXPIRATION_OPTIONS,
@@ -139,6 +143,10 @@ export function OwnerUploadPanel() {
     setStage("preparing");
     setMessage(stageMessages.preparing);
 
+    let failureStage: ClientFailureStage = "initialize";
+    let diagnosticFileId: string | undefined;
+    let diagnosticRequestId: string | null = null;
+
     try {
       const initializeResponse = await fetch("/api/uploads/initialize", {
         method: "POST",
@@ -151,6 +159,7 @@ export function OwnerUploadPanel() {
         }),
       });
 
+      diagnosticRequestId = initializeResponse.headers.get("X-Request-ID");
       if (!initializeResponse.ok) {
         const code = await readErrorCode(initializeResponse);
         if (code === "UNAUTHENTICATED") {
@@ -161,6 +170,8 @@ export function OwnerUploadPanel() {
 
       const initialized =
         (await initializeResponse.json()) as InitializedUpload;
+      diagnosticFileId = initialized.fileId;
+      failureStage = "direct-upload";
 
       setStage("uploading");
       setMessage(stageMessages.uploading);
@@ -178,6 +189,7 @@ export function OwnerUploadPanel() {
       }
 
       setStage("verifying");
+      failureStage = "complete";
       setMessage(stageMessages.verifying);
 
       const completionResponse = await fetch(
@@ -185,6 +197,7 @@ export function OwnerUploadPanel() {
         { method: "POST" },
       );
 
+      diagnosticRequestId = completionResponse.headers.get("X-Request-ID");
       if (!completionResponse.ok) {
         const code = await readErrorCode(completionResponse);
         if (code === "UNAUTHENTICATED") {
@@ -205,12 +218,16 @@ export function OwnerUploadPanel() {
       setStage("success");
       setMessage(stageMessages.success);
     } catch (error) {
+      reportClientFailure(failureStage, diagnosticFileId);
       const code = error instanceof Error ? error.message : undefined;
       setStage("error");
       setMessage(
-        code === "DIRECT_UPLOAD_FAILED"
+        (code === "DIRECT_UPLOAD_FAILED"
           ? "R2 rejected or interrupted the direct upload. No file was marked READY."
-          : errorMessage(code),
+          : errorMessage(code)) +
+          (diagnosticRequestId && /^[a-f0-9-]{36}$/iu.test(diagnosticRequestId)
+            ? ` Reference: ${diagnosticRequestId}.`
+            : ""),
       );
     }
   }

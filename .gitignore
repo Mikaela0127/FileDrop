@@ -26,6 +26,7 @@
 *.swp
 
 # logs
+/logs
 *.log
 pnpm-debug.log*
 

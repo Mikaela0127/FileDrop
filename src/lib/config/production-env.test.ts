@@ -5,6 +5,10 @@ import { parseProductionEnv } from "./production-env";
 const ownerPasswordHash = `$scrypt$ln=16,r=8,p=1$${Buffer.alloc(16, 3).toString("base64url")}$${Buffer.alloc(32, 4).toString("base64url")}`;
 
 const validProductionEnvironment = {
+  SHARE_TOKEN_KEYRING: JSON.stringify({
+    active: "test",
+    keys: { test: Buffer.alloc(32, 1).toString("hex") },
+  }),
   APP_URL: "https://filedrop.example.test",
   DATABASE_URL:
     "postgresql://filedrop:fixture-password@db-pooler.example.test/filedrop?sslmode=require",
@@ -27,6 +31,7 @@ describe("production environment", () => {
   });
 
   it.each([
+    "SHARE_TOKEN_KEYRING",
     "SESSION_SECRET",
     "DIRECT_URL",
     "UPLOAD_PASSWORD_HASH",

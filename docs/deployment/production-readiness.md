@@ -31,18 +31,19 @@ project, or one database across production and untrusted preview deployments.
 
 Add all of the following under Vercel's **Production** environment scope:
 
-| Variable               | Production rule                                                                                 |
-| ---------------------- | ----------------------------------------------------------------------------------------------- |
-| `APP_URL`              | Exact public HTTPS origin, currently `https://filedrop.mikaela79.com`; no path or trailing data |
-| `DATABASE_URL`         | Pooled Neon URL for runtime queries, containing credentials, database, and required TLS mode    |
-| `DIRECT_URL`           | Direct Neon URL for Prisma migrations, containing credentials, database, and required TLS mode  |
-| `SESSION_SECRET`       | Independent random value of at least 32 characters                                              |
-| `UPLOAD_PASSWORD_HASH` | FileDrop scrypt hash generated from the private owner passphrase                                |
-| `CRON_SECRET`          | A different random value of at least 32 characters                                              |
-| `R2_ACCOUNT_ID`        | Cloudflare's 32-character account ID                                                            |
-| `R2_ACCESS_KEY_ID`     | Bucket-scoped R2 access key ID                                                                  |
-| `R2_SECRET_ACCESS_KEY` | Bucket-scoped R2 secret access key                                                              |
-| `R2_BUCKET_NAME`       | Private production bucket name                                                                  |
+| Variable               | Production rule                                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------------------------------- |
+| `APP_URL`              | Exact public HTTPS origin, currently `https://filedrop.mikaela79.com`; no path or trailing data       |
+| `DATABASE_URL`         | Pooled Neon URL for runtime queries, containing credentials, database, and required TLS mode          |
+| `DIRECT_URL`           | Direct Neon URL for Prisma migrations, containing credentials, database, and required TLS mode        |
+| `SHARE_TOKEN_KEYRING`  | Independent versioned AES-256 keyring; see the [management upgrade guide](file-management-upgrade.md) |
+| `SESSION_SECRET`       | Independent random value of at least 32 characters                                                    |
+| `UPLOAD_PASSWORD_HASH` | FileDrop scrypt hash generated from the private owner passphrase                                      |
+| `CRON_SECRET`          | A different random value of at least 32 characters                                                    |
+| `R2_ACCOUNT_ID`        | Cloudflare's 32-character account ID                                                                  |
+| `R2_ACCESS_KEY_ID`     | Bucket-scoped R2 access key ID                                                                        |
+| `R2_SECRET_ACCESS_KEY` | Bucket-scoped R2 secret access key                                                                    |
+| `R2_BUCKET_NAME`       | Private production bucket name                                                                        |
 
 Generate the owner hash and random secrets with the commands documented in the
 [owner-authentication guide](owner-authentication.md) and

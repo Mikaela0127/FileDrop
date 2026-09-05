@@ -10,6 +10,7 @@ export interface CleanupExpiredFilesDependencies {
   clock?: () => Date;
   batchSize?: number;
   deletionLeaseMilliseconds?: number;
+  onFailure?: (fileId: string, error: unknown) => void;
 }
 
 export interface CleanupExpiredFilesResult {
@@ -43,6 +44,7 @@ export function createCleanupExpiredFiles({
   clock = () => new Date(),
   batchSize = CLEANUP_BATCH_SIZE,
   deletionLeaseMilliseconds = DELETION_LEASE_MILLISECONDS,
+  onFailure,
 }: CleanupExpiredFilesDependencies) {
   requirePositiveInteger(batchSize, "batchSize");
   requirePositiveInteger(
@@ -100,7 +102,8 @@ export function createCleanupExpiredFiles({
         } else {
           result.skippedCount += 1;
         }
-      } catch {
+      } catch (error) {
+        onFailure?.(claimedFile.id, error);
         result.failedCount += 1;
 
         try {

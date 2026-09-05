@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 
 import { NextResponse } from "next/server";
+import { logEvent } from "../../../../lib/operations/logger";
 
 import type { CleanupExpiredFilesResult } from "../../application/cleanup-expired-files";
 
@@ -84,7 +85,8 @@ export function createScheduledCleanupHandler({
       }
 
       return response;
-    } catch {
+    } catch (error) {
+      logEvent("cleanup.run", { error });
       return scheduledCleanupUnavailableResponse();
     }
   };

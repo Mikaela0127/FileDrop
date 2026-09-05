@@ -3,6 +3,10 @@
 - Status: Accepted
 - Date: 2026-08-31
 
+The read-only/hash-only catalog decisions below are historical and partially
+superseded by [ADR 0017](0017-owner-file-management.md). The bounded list remains
+data-minimized; separate authenticated endpoints now provide management actions.
+
 ## Context
 
 FileDrop persists download authorization counters, but an owner needs a safe

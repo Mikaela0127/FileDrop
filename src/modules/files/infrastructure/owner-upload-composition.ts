@@ -4,6 +4,9 @@ import type { NextResponse } from "next/server";
 
 import { R2StorageConfigurationError } from "../../../lib/config/r2-storage-config";
 import { prisma } from "../../../lib/database/prisma";
+import { getServerEnv } from "../../../lib/config/server-env";
+import { parseShareTokenKeyring } from "../../../lib/config/share-token-keyring";
+import { AesShareTokenCipher } from "./storage/aes-share-token-cipher";
 import { withOwnerAuthContext } from "../../auth/infrastructure/owner-auth-composition";
 import { createCompleteUpload } from "../application/complete-upload";
 import { createInitializeUpload } from "../application/initialize-upload";
@@ -30,6 +33,9 @@ export function withOwnerUploadHttpHandlers(
           authentication,
           initializeUpload: createInitializeUpload({
             fileRepository,
+            shareTokenCipher: new AesShareTokenCipher(
+              parseShareTokenKeyring(getServerEnv().SHARE_TOKEN_KEYRING),
+            ),
             uploadUrlProvider: getR2UploadUrlProvider(),
           }),
           completeUpload: createCompleteUpload({

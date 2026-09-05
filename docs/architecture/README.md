@@ -25,6 +25,12 @@ file bytes only; PostgreSQL stores metadata and lifecycle state only.
 
 ## Module boundaries
 
+Owner logs use a separate `modules/logs` repository and `operational_logs` table.
+The shared logger emits safe stdout JSON and collects a bounded per-request batch;
+the Node instrumentation hook installs its PostgreSQL sink. The authenticated
+log-read API returns paginated, revalidated safe payloads without logging itself.
+Retention and failure behavior are documented in [Diagnostic logs](../operations/diagnostic-logs.md).
+
 ```text
 src/app                         Next.js route composition and UI delivery
 src/modules/auth/application    Provider-neutral owner auth orchestration
@@ -90,7 +96,8 @@ authorization check immediately before creating storage access.
                  └──> FileRepository ─────> conditional PENDING → READY
 ```
 
-The 256-bit raw share token is returned once and is never persisted. Object keys
+The 256-bit share token is returned to the owner and persisted only as a lookup
+hash plus AES-256-GCM ciphertext under an independent environment key. Object keys
 contain an opaque UUID rather than the user-controlled file name. Signed upload
 URLs live for at most 15 minutes and are never stored. Both mutation endpoints
 repeat exact-origin and owner-session authorization checks; the `/upload` page's
@@ -184,10 +191,10 @@ presentation rule only; reads do not mutate lifecycle state. Aggregate cards
 therefore describe only the currently loaded bounded window, not every historic
 record.
 
-Existing share links cannot be reconstructed in the catalog. Initialization
-returns the raw 256-bit bearer token once, while PostgreSQL retains only its
-one-way SHA-256 hash. Preserving that security property is more important than a
-convenient "copy old link" action.
+The catalog never returns bearer tokens or ciphertext. A separate authenticated,
+same-origin POST retrieves the active link using a versioned AES-256-GCM keyring.
+Legacy hash-only files require a confirmed, atomic one-time replacement. See
+[ADR 0017](../decisions/0017-owner-file-management.md) for recovery and deletion rules.
 
 ## Browser experience and verification boundary
 
@@ -372,7 +379,9 @@ PostgreSQL                     constraints, indexes, durable metadata
 
 The initial `files` table stores identifiers, a SHA-256 share-token hash, the R2
 object key, user-visible metadata, lifecycle timestamps, and download counters.
-The raw share token and file bytes are never stored in PostgreSQL.
+Plaintext share tokens and file bytes are never stored in PostgreSQL. The
+management migration adds nullable `share_token_ciphertext` and
+`manually_expired_at` columns; existing hash-only links remain valid.
 
 Download authorization writes use the existing `download_count` and
 `last_downloaded_at` columns through a dedicated application port. No schema

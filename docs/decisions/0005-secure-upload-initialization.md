@@ -3,6 +3,10 @@
 - Status: Accepted
 - Date: 2026-08-24
 
+The hash-only storage and return-once decisions below are historical and partially
+superseded by [ADR 0017](0017-owner-file-management.md). Public lookup still uses
+the hash; owner recovery now uses independently encrypted token ciphertext.
+
 ## Context
 
 The browser will eventually upload files directly to private object storage.

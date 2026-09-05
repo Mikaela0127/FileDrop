@@ -100,6 +100,8 @@ jobs:
         run: pnpm deploy:check
         env:
           APP_URL: https://filedrop.example.test
+          # Non-secret, deterministic fixture; never use this key in a deployment.
+          SHARE_TOKEN_KEYRING: '{"active":"fixture","keys":{"fixture":"0101010101010101010101010101010101010101010101010101010101010101"}}'
           DATABASE_URL: postgresql://filedrop:not-a-real-password@db-pooler.example.test/filedrop?sslmode=require
           DIRECT_URL: postgresql://filedrop:not-a-real-password@db.example.test/filedrop?sslmode=require
           SESSION_SECRET: not-a-real-session-fixture-value-for-ci

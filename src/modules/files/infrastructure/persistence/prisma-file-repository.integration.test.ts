@@ -37,6 +37,12 @@ async function createFileForCleanup(
   });
   createdFileIds.push(file.id);
 
+  // Fixtures model existing uploads, not a still-live upload authorization.
+  await client.file.update({
+    where: { id: file.id },
+    data: { createdAt: new Date(expiresAt.getTime() - 86_400_000) },
+  });
+
   if (updatedAt) {
     await client.file.update({
       where: { id: file.id },
@@ -57,6 +63,85 @@ afterAll(async () => {
 });
 
 describe("PrismaFileRepository", () => {
+  it("allows exactly one concurrent legacy link replacement and omits ciphertext from the catalog", async () => {
+    const now = new Date();
+    const file = await createFileForCleanup(
+      "READY",
+      new Date(now.getTime() + 3600_000),
+    );
+    const attempts = ["first", "second"].map((name) => ({
+      hash: createHash("sha256").update(name).digest("hex"),
+      ciphertext: `fixture-${name}`,
+    }));
+    const results = await Promise.all(
+      attempts.map((value) =>
+        repository.storeLegacyShareToken(
+          file.id,
+          file.shareTokenHash,
+          value.hash,
+          value.ciphertext,
+          now,
+        ),
+      ),
+    );
+    expect(results.filter(Boolean)).toHaveLength(1);
+    const stored = await repository.findById(file.id);
+    expect(stored?.shareTokenHash).toBe(attempts[results.indexOf(true)].hash);
+    expect(
+      await repository.findByShareTokenHash(file.shareTokenHash),
+    ).toBeNull();
+    const catalog = (await repository.listRecent(50)).find(
+      (row) => row.id === file.id,
+    );
+    expect(catalog?.canRecoverShareLink).toBe(true);
+    expect(catalog).not.toHaveProperty("shareTokenCiphertext");
+  });
+
+  it("manual expiry preserves the scheduled date and fences later download authorization", async () => {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 3600_000);
+    const file = await createFileForCleanup("READY", expiresAt);
+    expect(await repository.expireReadyFile(file.id, now)).toBe(true);
+    expect(await repository.expireReadyFile(file.id, now)).toBe(false);
+    expect(await repository.recordDownloadAuthorization(file.id, now)).toBe(
+      false,
+    );
+    expect(await repository.findById(file.id)).toMatchObject({
+      status: "EXPIRED",
+      expiresAt,
+      manuallyExpiredAt: now,
+    });
+    expect(await repository.removeDeletedRecord(file.id)).toBe(false);
+  });
+
+  it("blocks cleanup of a fresh upload and hard-deletes only confirmed DELETED records", async () => {
+    const now = new Date();
+    const file = await createFileForCleanup("EXPIRED", now);
+    await client.file.update({
+      where: { id: file.id },
+      data: { createdAt: now },
+    });
+    expect(
+      await repository.claimForDeletion(
+        file.id,
+        new Date(now.getTime() - 900_000),
+        now,
+      ),
+    ).toBeNull();
+    expect(
+      await repository.findDeletionCandidateIds(
+        new Date(now.getTime() - 900_000),
+        100,
+      ),
+    ).not.toContain(file.id);
+    expect(await repository.removeDeletedRecord(file.id)).toBe(false);
+    await client.file.update({
+      where: { id: file.id },
+      data: { status: "DELETED", deletedAt: now },
+    });
+    expect(await repository.removeDeletedRecord(file.id)).toBe(true);
+    expect(await repository.findById(file.id)).toBeNull();
+  });
   it("persists metadata and retrieves it by the hashed share token", async () => {
     const shareTokenHash = createHash("sha256")
       .update(randomUUID())

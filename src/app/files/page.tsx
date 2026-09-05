@@ -22,12 +22,11 @@ export default function OwnerFileCatalogPage() {
             Owner file activity
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-            Metadata you can explain and trust.
+            Manage your shared files.
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-            Review recent lifecycle state, expiration, and authorized download
-            handoffs without exposing private storage identifiers or bearer
-            tokens.
+            Retrieve share links, stop sharing, and remove expired records.
+            Review each file’s status and download activity in one place.
           </p>
         </div>
         <Link
@@ -39,6 +38,12 @@ export default function OwnerFileCatalogPage() {
       </header>
 
       <OwnerFileCatalog />
+      <Link
+        className="mt-6 inline-block rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
+        href="/owner/logs"
+      >
+        View owner logs
+      </Link>
     </main>
   );
 }

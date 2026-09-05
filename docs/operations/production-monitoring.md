@@ -1,5 +1,8 @@
 # Production monitoring and first-response guide
 
+For request IDs, structured application logs, privacy-safe export, and provider
+retention limits, see [Diagnostic logs](diagnostic-logs.md).
+
 FileDrop exposes a minimal public liveness endpoint and a repeatable, anonymous
 production smoke test. Neither mechanism needs an owner passphrase, session
 cookie, cleanup secret, database URL, or R2 credential.

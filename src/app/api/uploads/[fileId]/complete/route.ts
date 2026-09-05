@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { observeRequest } from "../../../../../lib/operations/logger";
 
 import { withOwnerUploadHttpHandlers } from "../../../../../modules/files/infrastructure/owner-upload-composition";
 
@@ -13,7 +14,9 @@ export async function POST(
   context: CompleteUploadRouteContext,
 ) {
   const { fileId } = await context.params;
-  return withOwnerUploadHttpHandlers((handlers) =>
-    handlers.complete(request, fileId),
+  return observeRequest("upload.complete", () =>
+    withOwnerUploadHttpHandlers((handlers) =>
+      handlers.complete(request, fileId),
+    ),
   );
 }

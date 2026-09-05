@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logEvent } from "../../../../lib/operations/logger";
 
 import { isTrustedMutationOrigin } from "../../../../lib/http/same-origin";
 import type { OwnerAuthentication } from "../../../auth/application/owner-authentication";
@@ -109,6 +110,7 @@ export function createOwnerUploadHttpHandlers({
       try {
         const input = await parseInitializeUploadRequest(request);
         const result = await initializeUpload(input);
+        logEvent("upload.initialize", { fileId: result.fileId });
 
         return jsonResponse({
           fileId: result.fileId,
@@ -127,6 +129,7 @@ export function createOwnerUploadHttpHandlers({
           return errorResponse("INVALID_UPLOAD", 400);
         }
 
+        logEvent("upload.initialize", { error });
         return ownerUploadUnavailableResponse();
       }
     },
@@ -144,6 +147,7 @@ export function createOwnerUploadHttpHandlers({
 
       try {
         const result = await completeUpload(parseCompleteUploadFileId(fileId));
+        logEvent("upload.complete", { fileId });
         return jsonResponse({
           ...result,
           expiresAt: result.expiresAt.toISOString(),
@@ -158,6 +162,7 @@ export function createOwnerUploadHttpHandlers({
           return completionErrorResponse(error);
         }
 
+        logEvent("upload.complete", { error, fileId });
         return ownerUploadUnavailableResponse();
       }
     },

@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logEvent } from "../../../../lib/operations/logger";
 
 import type { OwnerAuthentication } from "../../../auth/application/owner-authentication";
 import { OWNER_SESSION_COOKIE_NAME } from "../../../auth/delivery/http/owner-auth-handlers";
@@ -56,7 +57,8 @@ export function createOwnerFileCatalogHttpHandler({
             createdAt: file.createdAt.toISOString(),
           })),
         });
-      } catch {
+      } catch (error) {
+        logEvent("files.list", { error });
         return ownerFileCatalogUnavailableResponse();
       }
     },

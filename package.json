@@ -26,6 +26,7 @@
     "db:studio": "prisma studio",
     "deploy:check": "tsx scripts/check-production-environment.ts",
     "smoke:production": "tsx scripts/run-production-smoke.ts",
+    "logs:sanitize": "node --import tsx scripts/export-safe-logs.ts",
     "release:check": "node --import tsx scripts/run-release-check.ts",
     "security:secrets": "gitleaks git --redact --no-banner --verbose .",
     "security:working-tree": "node --import tsx scripts/scan-working-tree.ts",

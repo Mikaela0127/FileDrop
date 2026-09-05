@@ -1,4 +1,5 @@
 import type { FileRepository } from "./ports/file-repository";
+import type { ShareTokenCipher } from "./ports/share-token-cipher";
 import {
   UPLOAD_URL_TTL_SECONDS,
   type UploadAuthorization,
@@ -22,6 +23,7 @@ export class UploadInitializationError extends Error {
 
 export interface InitializeUploadDependencies {
   fileRepository: FileRepository;
+  shareTokenCipher?: ShareTokenCipher;
   uploadUrlProvider: UploadUrlProvider;
   clock?: () => Date;
   createObjectKey?: () => string;
@@ -73,6 +75,7 @@ function validateUploadAuthorization(
 
 export function createInitializeUpload({
   fileRepository,
+  shareTokenCipher,
   uploadUrlProvider,
   clock = () => new Date(),
   createObjectKey = generateObjectKey,
@@ -100,6 +103,14 @@ export function createInitializeUpload({
 
     const file = await fileRepository.create({
       shareTokenHash,
+      ...(shareTokenCipher
+        ? {
+            shareTokenCiphertext: shareTokenCipher.encrypt(
+              shareToken,
+              objectKey,
+            ),
+          }
+        : {}),
       objectKey,
       originalName: metadata.originalName,
       contentType: metadata.contentType,

@@ -14,6 +14,8 @@ import type {
   OwnerFileCatalogRepository,
 } from "../../application/ports/owner-file-catalog-repository";
 import type { FileRecord, FileStatus } from "../../domain/file-record";
+import { UPLOAD_DELETION_SAFETY_MS } from "../../application/manage-owner-file";
+import type { FileManagementRepository } from "../../application/ports/file-management-repository";
 
 const FILE_STATUS_MAP: Record<PrismaFileStatus, FileStatus> = {
   PENDING: "PENDING",
@@ -49,6 +51,7 @@ function toSafeFileSize(fileId: string, sizeBytes: bigint): number {
 export class PrismaFileRepository
   implements
     FileRepository,
+    FileManagementRepository,
     FileCleanupRepository,
     DownloadStatisticsRepository,
     OwnerFileCatalogRepository
@@ -100,11 +103,14 @@ export class PrismaFileRepository
         downloadCount: true,
         lastDownloadedAt: true,
         createdAt: true,
+        shareTokenCiphertext: true,
+        manuallyExpiredAt: true,
       },
     });
 
-    return files.map((file) => ({
+    return files.map(({ shareTokenCiphertext, ...file }) => ({
       ...file,
+      canRecoverShareLink: shareTokenCiphertext !== null,
       sizeBytes: toSafeFileSize(file.id, file.sizeBytes),
       status: FILE_STATUS_MAP[file.status],
     }));
@@ -112,6 +118,52 @@ export class PrismaFileRepository
 
   markExpiredIfPending(id: string): Promise<FileRecord | null> {
     return this.transitionPendingFile(id, { status: "EXPIRED" });
+  }
+
+  async expireReadyFile(id: string, now: Date): Promise<boolean> {
+    const result = await this.client.file.updateMany({
+      where: { id, status: "READY", expiresAt: { gt: now } },
+      data: { status: "EXPIRED", manuallyExpiredAt: now },
+    });
+    return result.count === 1;
+  }
+
+  async expireDueFile(id: string, now: Date): Promise<void> {
+    await this.client.file.updateMany({
+      where: {
+        id,
+        status: { in: ["READY", "PENDING"] },
+        expiresAt: { lte: now },
+      },
+      data: { status: "EXPIRED" },
+    });
+  }
+
+  async storeLegacyShareToken(
+    id: string,
+    expectedHash: string,
+    hash: string,
+    ciphertext: string,
+    now: Date,
+  ): Promise<boolean> {
+    const result = await this.client.file.updateMany({
+      where: {
+        id,
+        shareTokenHash: expectedHash,
+        shareTokenCiphertext: null,
+        status: "READY",
+        expiresAt: { gt: now },
+      },
+      data: { shareTokenHash: hash, shareTokenCiphertext: ciphertext },
+    });
+    return result.count === 1;
+  }
+
+  async removeDeletedRecord(id: string): Promise<boolean> {
+    const result = await this.client.file.deleteMany({
+      where: { id, status: "DELETED" },
+    });
+    return result.count === 1;
   }
 
   markFailedIfPending(id: string): Promise<FileRecord | null> {
@@ -144,6 +196,7 @@ export class PrismaFileRepository
   ): Promise<string[]> {
     const files = await this.client.file.findMany({
       where: {
+        createdAt: { lte: new Date(Date.now() - UPLOAD_DELETION_SAFETY_MS) },
         OR: [
           { status: { in: ["EXPIRED", "FAILED"] } },
           { status: "DELETING", updatedAt: { lte: staleLeaseBefore } },
@@ -194,6 +247,9 @@ export class PrismaFileRepository
     const [file] = await this.client.file.updateManyAndReturn({
       where: {
         id,
+        createdAt: {
+          lte: new Date(leaseAcquiredAt.getTime() - UPLOAD_DELETION_SAFETY_MS),
+        },
         OR: [
           { status: { in: ["EXPIRED", "FAILED"] } },
           { status: "DELETING", updatedAt: { lte: staleLeaseBefore } },

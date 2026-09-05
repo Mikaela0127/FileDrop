@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isOwnerPasswordHash } from "../security/owner-password-hash-format";
+import { isShareTokenKeyring } from "./share-token-keyring";
 
 const optionalString = <Schema extends z.ZodType<string>>(schema: Schema) =>
   z.preprocess(
@@ -52,6 +53,14 @@ export const serverEnvSchema = z
     APP_URL: appUrlSchema,
     DATABASE_URL: databaseUrlSchema("DATABASE_URL"),
     DIRECT_URL: optionalString(databaseUrlSchema("DIRECT_URL")),
+    SHARE_TOKEN_KEYRING: optionalString(
+      z
+        .string()
+        .refine(
+          isShareTokenKeyring,
+          "SHARE_TOKEN_KEYRING must be a valid versioned keyring",
+        ),
+    ),
     SESSION_SECRET: optionalString(
       z.string().min(32, "SESSION_SECRET must contain at least 32 characters"),
     ),

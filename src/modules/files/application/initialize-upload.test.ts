@@ -14,6 +14,7 @@ import {
 } from "./initialize-upload";
 import type { FileRecord } from "../domain/file-record";
 import { hashShareToken } from "../domain/share-token";
+import { AesShareTokenCipher } from "../infrastructure/storage/aes-share-token-cipher";
 
 const now = new Date("2026-08-24T08:00:00.000Z");
 const rawShareToken = "a".repeat(43);
@@ -79,6 +80,32 @@ function createHarness(clock: () => Date = () => now) {
 }
 
 describe("initializeUpload", () => {
+  it("persists recoverable ciphertext alongside the lookup hash without storing plaintext", async () => {
+    const harness = createHarness();
+    const cipher = new AesShareTokenCipher({
+      active: "test",
+      keys: { test: Buffer.alloc(32, 1).toString("hex") },
+    });
+    const initialize = createInitializeUpload({
+      fileRepository: harness.fileRepository,
+      uploadUrlProvider: harness.uploadUrlProvider,
+      shareTokenCipher: cipher,
+      clock: () => now,
+      createObjectKey: () => objectKey,
+    });
+    const result = await initialize({
+      originalName: "test.txt",
+      sizeBytes: 42,
+      contentType: "text/plain",
+      expirationSeconds: 3600,
+    });
+    const stored = harness.persistedInputs[0];
+    expect(stored.shareTokenHash).toBe(hashShareToken(result.shareToken));
+    expect(cipher.decrypt(stored.shareTokenCiphertext!, objectKey)).toBe(
+      result.shareToken,
+    );
+    expect(JSON.stringify(stored)).not.toContain(result.shareToken);
+  });
   it("creates a short-lived upload authorization and persists only a token hash", async () => {
     const harness = createHarness();
 

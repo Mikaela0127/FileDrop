@@ -2,6 +2,7 @@ import type { ServerEnv } from "./server-env-schema";
 import { parseServerEnv } from "./server-env-schema";
 
 const requiredProductionKeys = [
+  "SHARE_TOKEN_KEYRING",
   "DIRECT_URL",
   "SESSION_SECRET",
   "UPLOAD_PASSWORD_HASH",
