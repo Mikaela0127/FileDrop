@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { OwnerUploadPanel } from "./owner-upload-panel";
+import { T } from "../../lib/i18n/language-provider";
 
 export const metadata: Metadata = {
   title: "Owner upload | FileDrop",
@@ -18,21 +19,19 @@ export default function OwnerUploadPage() {
     >
       <section className="order-2 lg:order-1">
         <p className="text-sm font-semibold tracking-[0.16em] text-indigo-700 uppercase">
-          Owner upload
+          <T id="upload.eyebrow" />
         </p>
         <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950">
-          The application controls access. R2 carries the bytes.
+          <T id="upload.title" />
         </h1>
         <p className="mt-5 max-w-lg text-base leading-7 text-slate-600">
-          FileDrop creates a 15-minute upload authorization, sends the file
-          directly to the private bucket, then verifies the actual R2 metadata
-          before marking it ready.
+          <T id="upload.description" />
         </p>
         <Link
           className="mt-6 inline-flex text-sm font-semibold text-indigo-700 hover:text-indigo-900"
           href="/files"
         >
-          View file activity
+          <T id="nav.fileActivity" />
         </Link>
       </section>
 

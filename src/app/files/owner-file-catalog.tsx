@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { FileManagementActions } from "./file-management-actions";
+import { useLanguage } from "../../lib/i18n/language-provider";
 
 type FileStatus =
   "PENDING" | "READY" | "FAILED" | "EXPIRED" | "DELETING" | "DELETED";
@@ -32,67 +33,52 @@ type CatalogState =
   | { kind: "error"; message: string }
   | { kind: "ready"; data: CatalogResponse; observedAt: number };
 
-const STATUS_DETAILS: Record<FileStatus, { label: string; className: string }> =
-  {
-    PENDING: {
-      label: "Pending upload",
-      className: "bg-amber-50 text-amber-800 ring-amber-200",
-    },
-    READY: {
-      label: "Available",
-      className: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-    },
-    FAILED: {
-      label: "Upload failed",
-      className: "bg-rose-50 text-rose-800 ring-rose-200",
-    },
-    EXPIRED: {
-      label: "Expired",
-      className: "bg-slate-100 text-slate-700 ring-slate-200",
-    },
-    DELETING: {
-      label: "Deleting",
-      className: "bg-violet-50 text-violet-800 ring-violet-200",
-    },
-    DELETED: {
-      label: "Deleted",
-      className: "bg-slate-100 text-slate-500 ring-slate-200",
-    },
-  };
+const STATUS_DETAILS: Record<FileStatus, { className: string }> = {
+  PENDING: {
+    className: "bg-amber-50 text-amber-800 ring-amber-200",
+  },
+  READY: {
+    className: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+  },
+  FAILED: {
+    className: "bg-rose-50 text-rose-800 ring-rose-200",
+  },
+  EXPIRED: {
+    className: "bg-slate-100 text-slate-700 ring-slate-200",
+  },
+  DELETING: {
+    className: "bg-violet-50 text-violet-800 ring-violet-200",
+  },
+  DELETED: {
+    className: "bg-slate-100 text-slate-500 ring-slate-200",
+  },
+};
 
-const numberFormatter = new Intl.NumberFormat(undefined, {
-  maximumFractionDigits: 1,
-});
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-function formatBytes(bytes: number): string {
+function formatBytes(bytes: number, locale: string): string {
+  const formatter = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
   if (bytes >= 1_000_000_000) {
-    return `${numberFormatter.format(bytes / 1_000_000_000)} GB`;
+    return `${formatter.format(bytes / 1_000_000_000)} GB`;
   }
 
   if (bytes >= 1_000_000) {
-    return `${numberFormatter.format(bytes / 1_000_000)} MB`;
+    return `${formatter.format(bytes / 1_000_000)} MB`;
   }
 
   if (bytes >= 1_000) {
-    return `${numberFormatter.format(bytes / 1_000)} KB`;
+    return `${formatter.format(bytes / 1_000)} KB`;
   }
 
-  return `${numberFormatter.format(bytes)} B`;
+  return `${formatter.format(bytes)} B`;
 }
 
-function formatDate(value: string | null): string {
-  if (!value) {
-    return "Never";
-  }
-
+function formatDate(value: string, locale: string): string {
   const date = new Date(value);
   return Number.isFinite(date.getTime())
-    ? dateFormatter.format(date)
-    : "Unknown";
+    ? new Intl.DateTimeFormat(locale, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date)
+    : "";
 }
 
 function effectiveStatus(file: CatalogFile, now: number): FileStatus {
@@ -156,6 +142,7 @@ async function requestCatalog(signal?: AbortSignal): Promise<CatalogState> {
 }
 
 export function OwnerFileCatalog() {
+  const { locale, t } = useLanguage();
   const [state, setState] = useState<CatalogState>({ kind: "loading" });
 
   useEffect(() => {
@@ -203,7 +190,7 @@ export function OwnerFileCatalog() {
         className="rounded-3xl border border-white/70 bg-white/90 p-8 text-sm text-slate-600 shadow-[0_24px_80px_-32px_rgba(34,50,90,0.35)]"
         role="status"
       >
-        Loading private file activity…
+        {t("files.loading")}
       </div>
     );
   }
@@ -219,17 +206,16 @@ export function OwnerFileCatalog() {
           className="text-xl font-semibold text-slate-950"
           id="catalog-auth-required"
         >
-          Owner session required
+          {t("common.ownerRequired")}
         </h2>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          The catalog API verifies the signed HttpOnly owner session before it
-          reads any file metadata.
+          {t("files.authDescription")}
         </p>
         <Link
           className="mt-6 inline-flex rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
           href="/login"
         >
-          Go to owner sign in
+          {t("common.ownerSignIn")}
         </Link>
       </div>
     );
@@ -244,15 +230,17 @@ export function OwnerFileCatalog() {
         role="alert"
       >
         <h2 className="text-xl font-semibold text-slate-950">
-          File activity unavailable
+          {t("files.unavailable")}
         </h2>
-        <p className="mt-3 text-sm leading-6 text-slate-600">{state.message}</p>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          {t("files.loadError")}
+        </p>
         <button
           className="mt-6 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
           onClick={() => void refreshCatalog()}
           type="button"
         >
-          Try again
+          {t("common.tryAgain")}
         </button>
       </div>
     );
@@ -266,11 +254,10 @@ export function OwnerFileCatalog() {
       <div className="flex flex-col gap-4 rounded-3xl border border-white/70 bg-white/90 p-6 shadow-[0_24px_80px_-32px_rgba(34,50,90,0.35)] sm:flex-row sm:items-center sm:justify-between sm:p-8">
         <div>
           <p className="text-sm font-semibold text-slate-950">
-            Recent file activity
+            {t("files.recent")}
           </p>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Showing up to {limit} newest records. Refresh to read the latest
-            lifecycle and download data.
+            {t("files.showing", { limit })}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -278,7 +265,7 @@ export function OwnerFileCatalog() {
             className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             href="/upload"
           >
-            Upload a file
+            {t("files.upload")}
           </Link>
           <button
             aria-controls="owner-file-list"
@@ -286,26 +273,28 @@ export function OwnerFileCatalog() {
             onClick={() => void refreshCatalog()}
             type="button"
           >
-            Refresh
+            {t("files.refresh")}
           </button>
         </div>
       </div>
 
       <dl className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl bg-slate-950 p-5 text-white">
-          <dt className="text-xs text-slate-400">Recent records</dt>
+          <dt className="text-xs text-slate-400">{t("files.records")}</dt>
           <dd className="mt-2 text-2xl font-semibold">{files.length}</dd>
         </div>
         <div className="rounded-2xl bg-emerald-50 p-5 text-emerald-950">
-          <dt className="text-xs text-emerald-700">Available now</dt>
+          <dt className="text-xs text-emerald-700">
+            {t("files.availableNow")}
+          </dt>
           <dd className="mt-2 text-2xl font-semibold">
             {summary?.available ?? 0}
           </dd>
         </div>
         <div className="rounded-2xl bg-indigo-50 p-5 text-indigo-950">
-          <dt className="text-xs text-indigo-600">Authorized handoffs</dt>
+          <dt className="text-xs text-indigo-600">{t("files.handoffs")}</dt>
           <dd className="mt-2 text-2xl font-semibold">
-            {numberFormatter.format(summary?.authorizations ?? 0)}
+            {new Intl.NumberFormat(locale).format(summary?.authorizations ?? 0)}
           </dd>
         </div>
       </dl>
@@ -314,10 +303,10 @@ export function OwnerFileCatalog() {
         {files.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-300 bg-white/70 p-10 text-center">
             <h2 className="text-lg font-semibold text-slate-950">
-              No file records yet
+              {t("files.empty")}
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Complete your first verified upload to populate this catalog.
+              {t("files.emptyDescription")}
             </p>
           </div>
         ) : (
@@ -343,57 +332,74 @@ export function OwnerFileCatalog() {
                     <span
                       className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${statusDetails.className}`}
                     >
-                      {statusDetails.label}
+                      {t(`status.${status}`)}
                     </span>
                   </div>
 
                   <dl className="mt-6 grid grid-cols-1 gap-x-5 gap-y-4 border-t border-slate-100 pt-5 text-sm sm:grid-cols-2">
                     <div>
-                      <dt className="text-xs text-slate-500">Size</dt>
+                      <dt className="text-xs text-slate-500">
+                        {t("files.size")}
+                      </dt>
                       <dd className="mt-1 font-medium text-slate-800">
-                        {formatBytes(file.sizeBytes)}
+                        {formatBytes(file.sizeBytes, locale)}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs text-slate-500">Downloads</dt>
+                      <dt className="text-xs text-slate-500">
+                        {t("files.downloads")}
+                      </dt>
                       <dd className="mt-1 font-medium text-slate-800">
-                        {numberFormatter.format(file.downloadCount)}
+                        {new Intl.NumberFormat(locale).format(
+                          file.downloadCount,
+                        )}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs text-slate-500">Created</dt>
+                      <dt className="text-xs text-slate-500">
+                        {t("files.created")}
+                      </dt>
                       <dd className="mt-1 text-slate-700">
                         <time dateTime={file.createdAt}>
-                          {formatDate(file.createdAt)}
+                          {formatDate(file.createdAt, locale) ||
+                            t("common.unknown")}
                         </time>
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs text-slate-500">Expires</dt>
+                      <dt className="text-xs text-slate-500">
+                        {t("files.expires")}
+                      </dt>
                       <dd className="mt-1 text-slate-700">
                         <time dateTime={file.expiresAt}>
-                          {formatDate(file.expiresAt)}
+                          {formatDate(file.expiresAt, locale) ||
+                            t("common.unknown")}
                         </time>
                       </dd>
                     </div>
                     <div className="sm:col-span-2">
                       <dt className="text-xs text-slate-500">
-                        Last authorized download
+                        {t("files.lastDownload")}
                       </dt>
                       <dd className="mt-1 text-slate-700">
                         {file.lastDownloadedAt ? (
                           <time dateTime={file.lastDownloadedAt}>
-                            {formatDate(file.lastDownloadedAt)}
+                            {formatDate(file.lastDownloadedAt, locale) ||
+                              t("common.unknown")}
                           </time>
                         ) : (
-                          "Never"
+                          t("common.never")
                         )}
                       </dd>
                     </div>
                   </dl>
                   {file.manuallyExpiredAt && (
                     <p className="mt-3 text-xs text-slate-600">
-                      Manually expired: {formatDate(file.manuallyExpiredAt)}
+                      {t("files.manuallyExpired", {
+                        date:
+                          formatDate(file.manuallyExpiredAt, locale) ||
+                          t("common.unknown"),
+                      })}
                     </p>
                   )}
                   <FileManagementActions
@@ -409,10 +415,7 @@ export function OwnerFileCatalog() {
       </div>
 
       <p className="rounded-2xl bg-slate-100 px-5 py-4 text-xs leading-5 text-slate-600">
-        Share links are retrieved only when requested by the owner. Older files
-        need a confirmed one-time replacement. Deleting a record also removes
-        its statistics from this recent-record summary; operational logs are
-        retained separately.
+        {t("files.note")}
       </p>
     </div>
   );

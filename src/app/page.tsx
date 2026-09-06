@@ -3,13 +3,14 @@ import {
   MAX_FILE_SIZE_LABEL,
 } from "@/modules/files/domain/file-policy";
 import Link from "next/link";
+import { T } from "../lib/i18n/language-provider";
 
 const foundations = [
-  "Next.js 16 App Router with strict TypeScript",
-  "PostgreSQL metadata, private R2 object storage",
-  "Owner-only uploads for the initial release",
-  "Direct browser uploads with short-lived signed URLs",
-];
+  "home.foundation1",
+  "home.foundation2",
+  "home.foundation3",
+  "home.foundation4",
+] as const;
 
 export default function Home() {
   return (
@@ -34,40 +35,43 @@ export default function Home() {
         <div className="grid gap-10 lg:grid-cols-[1.3fr_0.7fr] lg:items-end">
           <div>
             <p className="mb-3 text-sm font-medium text-indigo-700">
-              Engineering foundation ready
+              <T id="home.eyebrow" />
             </p>
             <h1 className="max-w-2xl text-3xl leading-tight font-semibold tracking-tight text-slate-950 sm:text-6xl">
-              Private file sharing, built to expire.
+              <T id="home.title" />
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
-              FileDrop transfers files through private object storage while
-              keeping ownership, metadata, and expiry rules under your control.
+              <T id="home.description" />
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link
                 className="inline-flex rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
                 href="/upload"
               >
-                Open owner upload
+                <T id="home.upload" />
               </Link>
               <Link
                 className="inline-flex rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 href="/files"
               >
-                View file activity
+                <T id="home.activity" />
               </Link>
             </div>
           </div>
 
           <dl className="grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-slate-950 p-4 text-white">
-              <dt className="text-xs text-slate-400">Maximum file</dt>
+              <dt className="text-xs text-slate-400">
+                <T id="home.maxFile" />
+              </dt>
               <dd className="mt-1 text-xl font-semibold">
                 {MAX_FILE_SIZE_LABEL}
               </dd>
             </div>
             <div className="rounded-2xl bg-indigo-50 p-4 text-indigo-950">
-              <dt className="text-xs text-indigo-500">Expiry choices</dt>
+              <dt className="text-xs text-indigo-500">
+                <T id="home.expiryChoices" />
+              </dt>
               <dd className="mt-1 text-xl font-semibold">
                 {EXPIRATION_OPTIONS.length}
               </dd>
@@ -85,7 +89,7 @@ export default function Home() {
                 aria-hidden="true"
                 className="mt-2 size-1.5 shrink-0 rounded-full bg-indigo-500"
               />
-              {foundation}
+              <T id={foundation} />
             </li>
           ))}
         </ul>

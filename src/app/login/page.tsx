@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { OwnerLoginPanel } from "./owner-login-panel";
+import { T } from "../../lib/i18n/language-provider";
 
 export const metadata: Metadata = {
   title: "Owner sign in | FileDrop",
@@ -17,15 +18,13 @@ export default function OwnerLoginPage() {
     >
       <section className="order-2 lg:order-1">
         <p className="text-sm font-semibold tracking-[0.16em] text-indigo-700 uppercase">
-          Owner authentication
+          <T id="login.eyebrow" />
         </p>
         <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950">
-          One owner today, replaceable authorization tomorrow.
+          <T id="login.title" />
         </h1>
         <p className="mt-5 max-w-lg text-base leading-7 text-slate-600">
-          Authentication verifies the passphrase, creates a signed session, and
-          protects every private upload and metadata request at its server
-          boundary.
+          <T id="login.description" />
         </p>
       </section>
 

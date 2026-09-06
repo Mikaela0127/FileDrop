@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { OwnerFileCatalog } from "./owner-file-catalog";
+import { T } from "../../lib/i18n/language-provider";
 
 export const metadata: Metadata = {
   title: "File activity | FileDrop",
@@ -19,21 +20,20 @@ export default function OwnerFileCatalogPage() {
       <header className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-semibold tracking-[0.16em] text-indigo-700 uppercase">
-            Owner file activity
+            <T id="files.eyebrow" />
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-            Manage your shared files.
+            <T id="files.title" />
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-            Retrieve share links, stop sharing, and remove expired records.
-            Review each file’s status and download activity in one place.
+            <T id="files.description" />
           </p>
         </div>
         <Link
           className="text-sm font-semibold text-indigo-700 hover:text-indigo-900"
           href="/"
         >
-          Back to FileDrop
+          <T id="nav.backHome" />
         </Link>
       </header>
 
@@ -42,7 +42,7 @@ export default function OwnerFileCatalogPage() {
         className="mt-6 inline-block rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
         href="/owner/logs"
       >
-        View owner logs
+        <T id="nav.ownerLogs" />
       </Link>
     </main>
   );

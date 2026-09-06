@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { OwnerLogs } from "./owner-logs";
+import { T } from "../../../lib/i18n/language-provider";
 
 export const metadata: Metadata = {
   title: "Owner logs | FileDrop",
@@ -14,13 +15,13 @@ export default function OwnerLogsPage() {
       tabIndex={-1}
     >
       <Link href="/files" className="text-sm font-semibold text-indigo-700">
-        Back to file activity
+        <T id="logs.back" />
       </Link>
-      <h1 className="mt-5 text-4xl font-semibold text-slate-950">Owner logs</h1>
+      <h1 className="mt-5 text-4xl font-semibold text-slate-950">
+        <T id="logs.title" />
+      </h1>
       <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
-        Recent errors and file operations, with private values excluded. Keep a
-        request ID when reporting a problem. Database outages and hard crashes
-        may only appear in Vercel logs.
+        <T id="logs.description" />
       </p>
       <OwnerLogs />
     </main>

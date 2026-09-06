@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useLanguage } from "../../lib/i18n/language-provider";
+import type { TranslationKey } from "../../lib/i18n/translations";
 import {
   reportClientFailure,
   type ClientFailureStage,
@@ -35,13 +37,13 @@ interface UploadResult {
   shareUrl: string;
 }
 
-const stageMessages: Record<UploadStage, string> = {
-  idle: "Choose one file and an expiration period.",
-  preparing: "Creating a short-lived R2 upload authorization…",
-  uploading: "Uploading directly from this browser to private object storage…",
-  verifying: "Verifying the stored size and content type with R2…",
-  success: "Upload verified. The database record is now READY.",
-  error: "The upload did not complete safely.",
+const stageMessages: Record<UploadStage, TranslationKey> = {
+  idle: "upload.idle",
+  preparing: "upload.preparing",
+  uploading: "upload.uploading",
+  verifying: "upload.verifying",
+  success: "upload.success",
+  error: "upload.error",
 };
 
 async function readErrorCode(response: Response): Promise<string | undefined> {
@@ -55,29 +57,31 @@ async function readErrorCode(response: Response): Promise<string | undefined> {
   }
 }
 
-function errorMessage(code: string | undefined): string {
+function errorMessage(code: string | undefined): TranslationKey {
   switch (code) {
     case "UNAUTHENTICATED":
-      return "Your owner session is missing or expired. Sign in again.";
+      return "upload.unauthenticated";
     case "FORBIDDEN_ORIGIN":
-      return "The server rejected this request origin.";
+      return "upload.forbidden";
     case "INVALID_UPLOAD":
-      return "The selected file metadata or expiration is invalid.";
+      return "upload.invalid";
     case "OBJECT_MISMATCH":
-      return "R2 received metadata that differs from the approved upload. The object was rejected.";
+      return "upload.mismatch";
     case "UPLOAD_EXPIRED":
-      return "This upload expired before verification finished.";
+      return "upload.expired";
     case "OBJECT_NOT_FOUND":
-      return "R2 could not find the uploaded object yet. Try the upload again.";
+      return "upload.notFound";
     default:
-      return "FileDrop could not finish the upload. Check the server and R2 configuration, then try again.";
+      return "upload.genericError";
   }
 }
 
 export function OwnerUploadPanel() {
+  const { locale, t } = useLanguage();
   const [access, setAccess] = useState<AccessState>("checking");
   const [stage, setStage] = useState<UploadStage>("idle");
   const [message, setMessage] = useState(stageMessages.idle);
+  const [messageValues, setMessageValues] = useState<Record<string, string>>();
   const [result, setResult] = useState<UploadResult>();
   const resultHeadingRef = useRef<HTMLHeadingElement>(null);
 
@@ -129,19 +133,22 @@ export function OwnerUploadPanel() {
 
     if (!(file instanceof File) || file.size < 1) {
       setStage("error");
-      setMessage("Choose a non-empty file.");
+      setMessage("upload.nonEmpty");
+      setMessageValues(undefined);
       return;
     }
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
       setStage("error");
-      setMessage(`The maximum file size is ${MAX_FILE_SIZE_LABEL} decimal.`);
+      setMessage("upload.tooLarge");
+      setMessageValues({ size: MAX_FILE_SIZE_LABEL });
       return;
     }
 
     setResult(undefined);
     setStage("preparing");
     setMessage(stageMessages.preparing);
+    setMessageValues(undefined);
 
     let failureStage: ClientFailureStage = "initialize";
     let diagnosticFileId: string | undefined;
@@ -175,6 +182,7 @@ export function OwnerUploadPanel() {
 
       setStage("uploading");
       setMessage(stageMessages.uploading);
+      setMessageValues(undefined);
 
       const uploadResponse = await fetch(initialized.upload.url, {
         method: initialized.upload.method,
@@ -191,6 +199,7 @@ export function OwnerUploadPanel() {
       setStage("verifying");
       failureStage = "complete";
       setMessage(stageMessages.verifying);
+      setMessageValues(undefined);
 
       const completionResponse = await fetch(
         `/api/uploads/${encodeURIComponent(initialized.fileId)}/complete`,
@@ -217,17 +226,20 @@ export function OwnerUploadPanel() {
       form.reset();
       setStage("success");
       setMessage(stageMessages.success);
+      setMessageValues(undefined);
     } catch (error) {
       reportClientFailure(failureStage, diagnosticFileId);
       const code = error instanceof Error ? error.message : undefined;
       setStage("error");
       setMessage(
-        (code === "DIRECT_UPLOAD_FAILED"
-          ? "R2 rejected or interrupted the direct upload. No file was marked READY."
-          : errorMessage(code)) +
-          (diagnosticRequestId && /^[a-f0-9-]{36}$/iu.test(diagnosticRequestId)
-            ? ` Reference: ${diagnosticRequestId}.`
-            : ""),
+        code === "DIRECT_UPLOAD_FAILED"
+          ? "upload.directFailed"
+          : errorMessage(code),
+      );
+      setMessageValues(
+        diagnosticRequestId && /^[a-f0-9-]{36}$/iu.test(diagnosticRequestId)
+          ? { referenceId: diagnosticRequestId }
+          : undefined,
       );
     }
   }
@@ -239,13 +251,11 @@ export function OwnerUploadPanel() {
 
     try {
       await navigator.clipboard.writeText(result.shareUrl);
-      setMessage(
-        "Share URL copied. Anyone with this link can download the file.",
-      );
+      setMessage("upload.copied");
+      setMessageValues(undefined);
     } catch {
-      setMessage(
-        "Could not access the clipboard. Copy the displayed URL manually.",
-      );
+      setMessage("upload.copyFailed");
+      setMessageValues(undefined);
     }
   }
 
@@ -256,7 +266,7 @@ export function OwnerUploadPanel() {
         className="rounded-3xl border border-white/70 bg-white/90 p-8 text-sm text-slate-600 shadow-[0_24px_80px_-32px_rgba(34,50,90,0.35)]"
         role="status"
       >
-        Checking the owner session…
+        {t("upload.checking")}
       </div>
     );
   }
@@ -272,17 +282,16 @@ export function OwnerUploadPanel() {
           className="text-xl font-semibold text-slate-950"
           id="upload-auth-required"
         >
-          Owner session required
+          {t("common.ownerRequired")}
         </h2>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          The upload API independently verifies your signed session before it
-          creates any R2 authorization.
+          {t("upload.authDescription")}
         </p>
         <Link
           className="mt-6 inline-flex rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
           href="/login"
         >
-          Go to owner sign in
+          {t("common.ownerSignIn")}
         </Link>
       </div>
     );
@@ -299,7 +308,7 @@ export function OwnerUploadPanel() {
             className="mb-2 block text-sm font-medium text-slate-800"
             htmlFor="upload-file"
           >
-            File
+            {t("upload.file")}
           </label>
           <input
             aria-describedby="upload-file-help"
@@ -311,8 +320,7 @@ export function OwnerUploadPanel() {
             type="file"
           />
           <p className="mt-2 text-xs text-slate-500" id="upload-file-help">
-            Maximum {MAX_FILE_SIZE_LABEL} (3,000,000,000 bytes). One file per
-            upload.
+            {t("upload.fileHelp", { size: MAX_FILE_SIZE_LABEL })}
           </p>
         </div>
 
@@ -321,7 +329,7 @@ export function OwnerUploadPanel() {
             className="mb-2 block text-sm font-medium text-slate-800"
             htmlFor="expiration-seconds"
           >
-            Delete after
+            {t("upload.deleteAfter")}
           </label>
           <select
             aria-describedby="expiration-help"
@@ -333,7 +341,7 @@ export function OwnerUploadPanel() {
           >
             {EXPIRATION_OPTIONS.map((option) => (
               <option key={option.seconds} value={option.seconds}>
-                {option.label}
+                {t(`expiry.${option.seconds}` as TranslationKey)}
               </option>
             ))}
           </select>
@@ -341,8 +349,7 @@ export function OwnerUploadPanel() {
             className="mt-2 text-xs leading-5 text-slate-500"
             id="expiration-help"
           >
-            Download access stops at this time, even if physical cleanup runs
-            later.
+            {t("upload.expiryHelp")}
           </p>
         </div>
 
@@ -351,7 +358,7 @@ export function OwnerUploadPanel() {
           disabled={pending}
           type="submit"
         >
-          {pending ? "Upload in progress…" : "Upload and verify"}
+          {pending ? t("upload.progress") : t("upload.submit")}
         </button>
       </form>
 
@@ -367,7 +374,10 @@ export function OwnerUploadPanel() {
         }`}
         role={stage === "error" ? "alert" : "status"}
       >
-        {message}
+        {t(message, messageValues)}
+        {messageValues?.referenceId
+          ? ` ${t("common.reference", { id: messageValues.referenceId })}`
+          : ""}
       </p>
 
       {result ? (
@@ -381,10 +391,12 @@ export function OwnerUploadPanel() {
             ref={resultHeadingRef}
             tabIndex={-1}
           >
-            Upload ready: {result.fileName}
+            {t("upload.ready", { name: result.fileName })}
           </h2>
           <p className="mt-1 text-xs text-emerald-800">
-            Expires {new Date(result.fileExpiresAt).toLocaleString()}
+            {t("upload.expires", {
+              date: new Date(result.fileExpiresAt).toLocaleString(locale),
+            })}
           </p>
           <code className="mt-4 block rounded-xl bg-white px-3 py-2 text-xs break-all whitespace-normal text-slate-700">
             {result.shareUrl}
@@ -394,11 +406,10 @@ export function OwnerUploadPanel() {
             onClick={copySharePath}
             type="button"
           >
-            Copy share URL
+            {t("upload.copy")}
           </button>
           <p className="mt-3 text-xs leading-5 text-emerald-800">
-            The token is shown only in this browser session. Treat the URL as a
-            password: anyone who has it can download the file until it expires.
+            {t("upload.tokenWarning")}
           </p>
         </section>
       ) : null}

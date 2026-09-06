@@ -1,6 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { reportClientFailure } from "../lib/operations/client-diagnostics";
+import { useLanguage } from "../lib/i18n/language-provider";
 
 export default function ErrorPage({
   retry,
@@ -8,23 +9,19 @@ export default function ErrorPage({
   error: Error & { digest?: string };
   retry: () => void;
 }) {
+  const { t } = useLanguage();
   useEffect(() => {
     reportClientFailure("render");
   }, []);
   return (
     <main className="mx-auto max-w-xl p-8" role="alert">
-      <h1 className="text-2xl font-semibold">
-        FileDrop could not load this page
-      </h1>
-      <p className="mt-4">
-        Please try again. If this keeps happening, note the time and check the
-        deployment logs.
-      </p>
+      <h1 className="text-2xl font-semibold">{t("error.title")}</h1>
+      <p className="mt-4">{t("error.description")}</p>
       <button
         className="mt-6 rounded-xl bg-indigo-600 px-4 py-2 text-white"
         onClick={retry}
       >
-        Try again
+        {t("common.tryAgain")}
       </button>
     </main>
   );

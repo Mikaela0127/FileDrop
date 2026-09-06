@@ -2,16 +2,19 @@
 
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
+import { useLanguage } from "../../lib/i18n/language-provider";
+import type { TranslationKey } from "../../lib/i18n/translations";
 
 type Status =
-  | { kind: "idle"; message: string }
-  | { kind: "error" | "success"; message: string };
+  | { kind: "idle"; message: TranslationKey }
+  | { kind: "error" | "success"; message: TranslationKey };
 
 export function OwnerLoginPanel() {
+  const { t } = useLanguage();
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<Status>({
     kind: "idle",
-    message: "Enter the owner passphrase to create an 8-hour session.",
+    message: "login.initial",
   });
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
@@ -20,12 +23,12 @@ export function OwnerLoginPanel() {
     const password = new FormData(form).get("password");
 
     if (typeof password !== "string" || password.length === 0) {
-      setStatus({ kind: "error", message: "Enter your owner passphrase." });
+      setStatus({ kind: "error", message: "login.required" });
       return;
     }
 
     setPending(true);
-    setStatus({ kind: "idle", message: "Verifying owner passphrase…" });
+    setStatus({ kind: "idle", message: "login.verifying" });
 
     try {
       const response = await fetch("/api/auth/login", {
@@ -39,23 +42,19 @@ export function OwnerLoginPanel() {
       if (response.ok) {
         setStatus({
           kind: "success",
-          message:
-            "Owner session created. You can now upload files or review private file activity.",
+          message: "login.success",
         });
         return;
       }
 
       setStatus({
         kind: "error",
-        message:
-          response.status === 429
-            ? "Authentication is busy. Wait a few seconds and try again."
-            : "Authentication failed. Check the passphrase and server configuration.",
+        message: response.status === 429 ? "login.busy" : "login.failed",
       });
     } catch {
       setStatus({
         kind: "error",
-        message: "FileDrop could not reach the authentication endpoint.",
+        message: "login.unreachable",
       });
     } finally {
       setPending(false);
@@ -70,13 +69,13 @@ export function OwnerLoginPanel() {
 
       setStatus(
         response.ok
-          ? { kind: "success", message: "Owner session cleared." }
-          : { kind: "error", message: "FileDrop could not clear the session." },
+          ? { kind: "success", message: "login.cleared" }
+          : { kind: "error", message: "login.clearFailed" },
       );
     } catch {
       setStatus({
         kind: "error",
-        message: "FileDrop could not reach the authentication endpoint.",
+        message: "login.unreachable",
       });
     } finally {
       setPending(false);
@@ -97,10 +96,10 @@ export function OwnerLoginPanel() {
         </span>
         <div>
           <p className="text-xs font-semibold tracking-[0.18em] text-indigo-700 uppercase">
-            FileDrop owner
+            {t("login.owner")}
           </p>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
-            Private upload access
+            {t("login.access")}
           </h2>
         </div>
       </div>
@@ -111,7 +110,7 @@ export function OwnerLoginPanel() {
             className="mb-2 block text-sm font-medium text-slate-800"
             htmlFor="owner-password"
           >
-            Owner passphrase
+            {t("login.passphrase")}
           </label>
           <input
             autoComplete="current-password"
@@ -130,7 +129,7 @@ export function OwnerLoginPanel() {
           disabled={pending}
           type="submit"
         >
-          {pending ? "Working…" : "Create owner session"}
+          {pending ? t("common.working") : t("login.create")}
         </button>
       </form>
 
@@ -146,7 +145,7 @@ export function OwnerLoginPanel() {
         }`}
         role={status.kind === "error" ? "alert" : "status"}
       >
-        {status.message}
+        {t(status.message)}
       </p>
 
       <button
@@ -155,7 +154,7 @@ export function OwnerLoginPanel() {
         onClick={handleLogout}
         type="button"
       >
-        Clear current session
+        {t("login.clear")}
       </button>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -163,20 +162,18 @@ export function OwnerLoginPanel() {
           className="rounded-2xl border border-slate-300 px-4 py-3 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           href="/upload"
         >
-          Open upload
+          {t("login.openUpload")}
         </Link>
         <Link
           className="rounded-2xl border border-slate-300 px-4 py-3 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           href="/files"
         >
-          View file activity
+          {t("nav.fileActivity")}
         </Link>
       </div>
 
       <p className="mt-6 text-xs leading-5 text-slate-500">
-        The passphrase is sent only to the same-origin FileDrop API over your
-        current connection. The resulting session cookie is HttpOnly and cannot
-        be read by browser JavaScript.
+        {t("login.security")}
       </p>
     </div>
   );

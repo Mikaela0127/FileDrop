@@ -21,6 +21,8 @@ smoke tests, and deployment and rollback documentation.
 - PostgreSQL-backed metadata, lifecycle state, and download statistics
 - Expiry choices from one hour to seven days with retryable scheduled deletion
 - Responsive, keyboard-accessible owner interface
+- English-default interface with browser-local Simplified and Traditional
+  Chinese preferences
 - Retrieve share links, manually expire files, and delete expired records with confirmation
 - Owner-visible, privacy-filtered diagnostic logs with filters, pagination and JSONL export
 - Unit, integration, and browser end-to-end test coverage

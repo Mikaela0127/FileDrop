@@ -1,6 +1,8 @@
 "use client";
 import { useEffect } from "react";
 import { reportClientFailure } from "../lib/operations/client-diagnostics";
+import { LanguageProvider, useLanguage } from "../lib/i18n/language-provider";
+import { LanguageSwitcher } from "./language-switcher";
 
 export default function GlobalError({
   retry,
@@ -14,14 +16,22 @@ export default function GlobalError({
   return (
     <html lang="en">
       <body>
-        <main role="alert">
-          <h1>FileDrop is temporarily unavailable</h1>
-          <p>
-            Please try again. Note the time if you need help troubleshooting.
-          </p>
-          <button onClick={retry}>Try again</button>
-        </main>
+        <LanguageProvider>
+          <LanguageSwitcher />
+          <GlobalErrorContent retry={retry} />
+        </LanguageProvider>
       </body>
     </html>
+  );
+}
+
+function GlobalErrorContent({ retry }: { retry: () => void }) {
+  const { t } = useLanguage();
+  return (
+    <main role="alert">
+      <h1>{t("error.globalTitle")}</h1>
+      <p>{t("error.globalDescription")}</p>
+      <button onClick={retry}>{t("common.tryAgain")}</button>
+    </main>
   );
 }
