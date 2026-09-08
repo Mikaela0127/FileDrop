@@ -1,0 +1,93 @@
+name: filedrop-production
+
+x-container-logging: &container-logging
+  driver: local
+  options:
+    max-file: "5"
+    max-size: 10m
+
+x-operations-security: &operations-security
+  cap_drop:
+    - ALL
+  init: true
+  mem_limit: 768m
+  pids_limit: 256
+  read_only: true
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=1770
+
+services:
+  release-gate:
+    image: ${FILEDROP_OPERATIONS_IMAGE:-filedrop-operations:local}
+    command:
+      - sh
+      - /app/deploy/release-gate.sh
+    env_file:
+      - ${FILEDROP_RUNTIME_ENV_FILE:?Set FILEDROP_RUNTIME_ENV_FILE to an absolute path}
+      - ${FILEDROP_MIGRATION_ENV_FILE:?Set FILEDROP_MIGRATION_ENV_FILE to an absolute path}
+    logging: *container-logging
+    restart: "no"
+    <<: *operations-security
+
+  app:
+    image: ${FILEDROP_IMAGE:-filedrop:local}
+    environment:
+      APP_REVISION: ${FILEDROP_REVISION:-}
+      NODE_OPTIONS: --max-old-space-size=512
+    env_file:
+      - ${FILEDROP_RUNTIME_ENV_FILE:?Set FILEDROP_RUNTIME_ENV_FILE to an absolute path}
+    depends_on:
+      release-gate:
+        condition: service_completed_successfully
+    cap_drop:
+      - ALL
+    expose:
+      - "3000"
+    init: true
+    logging: *container-logging
+    mem_limit: 768m
+    pids_limit: 256
+    read_only: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=1770
+      - /app/.next/cache:rw,noexec,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=0750
+
+  caddy:
+    image: caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    environment:
+      FILEDROP_DOMAIN: ${FILEDROP_DOMAIN:?Set FILEDROP_DOMAIN to the public hostname}
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    depends_on:
+      app:
+        condition: service_healthy
+    init: true
+    logging: *container-logging
+    mem_limit: 256m
+    pids_limit: 128
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+    read_only: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_config:/config
+      - caddy_data:/data
+
+volumes:
+  caddy_config:
+  caddy_data:

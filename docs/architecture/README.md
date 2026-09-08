@@ -233,15 +233,16 @@ tests.
 ## Production deployment boundary
 
 ```text
-Encrypted provider settings
+Encrypted deployment settings
           │
           ▼
 Production contract ── reject missing/insecure configuration
           │
-          ▼
-Prisma generate ──> migrate deploy ──> Next.js build ──> publish
-                                              │
-                               global browser security headers
+          ├── Vercel: migrate deploy ──> native Next.js publish
+          │
+          └── VPS: release gate succeeded ──> standalone Node healthy
+                                                         ▲
+Internet ── ports 80/443 ──> Caddy TLS ──────────────────┘
 
 GitHub dependency or Action update
           └──> pinned SHA + public CI + secret-history scan
@@ -260,7 +261,16 @@ the Cloudflare R2 HTTPS endpoint for direct PUTs. Its remaining inline-script
 allowance is a documented static-rendering trade-off, not a substitute for
 React escaping and input validation.
 
-The deployment gate applies committed migrations before publication. A code
+The Vercel build gate and VPS release-gate container both apply committed
+migrations before a new application release starts. The VPS runtime receives
+only the pooled database URL; its direct migration credential exists only in
+the one-shot operations container. Compose will not start a new runtime unless
+that gate completes successfully, and will not start Caddy until runtime health
+passes. Caddy is the only published container and
+keeps request access logging disabled so bearer share paths never enter proxy
+logs. Both deployment adapters apply the same global browser security headers.
+
+A code
 rollback does not reverse those durable database changes, so migrations must
 remain backward compatible. Production credentials are scoped only to the
 production environment; untrusted previews fail closed unless given isolated
@@ -300,7 +310,7 @@ not public CI against production.
 ## Scheduled cleanup boundary
 
 ```text
-Vercel Cron ── GET + Bearer CRON_SECRET ──> CleanupExpiredFiles
+Trusted scheduler ── GET + Bearer CRON_SECRET ──> CleanupExpiredFiles
                                                    │
                      PostgreSQL <── expire due + claim 100-row batch
                                                    │
@@ -329,7 +339,8 @@ object is treated as a safe reconciliation operation.
 `GET /api/cron/cleanup` uses a separate `CRON_SECRET`, compares a SHA-256 digest
 of the supplied bearer value in constant time, and emits uncached generic errors.
 The endpoint uses `GET` because Vercel Cron invokes configured paths with GET;
-possession of the secret, not the HTTP verb, is the mutation authorization.
+the VPS systemd timer deliberately keeps the same contract. Possession of the
+secret, not the HTTP verb, is the mutation authorization.
 
 ## R2 upload adapter
 

@@ -1,0 +1,12 @@
+[Unit]
+Description=Run FileDrop cleanup daily
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+AccuracySec=1m
+RandomizedDelaySec=5m
+Persistent=true
+Unit=filedrop-cleanup.service
+
+[Install]
+WantedBy=timers.target

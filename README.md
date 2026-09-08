@@ -198,6 +198,12 @@ The committed Compose configuration exposes PostgreSQL only on
 not be reused in production. The database volume survives ordinary container
 restarts and `pnpm db:down`.
 
+For a VPS deployment, keep this development database Compose file unchanged and
+use the separate hardened application/Caddy configuration in
+[the VPS Docker guide](docs/deployment/vps-docker.md). The same source remains
+deployable to Vercel; Docker selects Next.js standalone output only during image
+construction.
+
 On macOS, Docker Desktop works. A lightweight open-source alternative is Docker
 CLI plus Colima:
 
@@ -285,10 +291,13 @@ and credential review checklist.
 - [ADR 0014: Fail closed before production deployment](docs/decisions/0014-production-deployment-guardrails.md)
 - [ADR 0015: Separate public liveness from read-only smoke tests](docs/decisions/0015-public-liveness-and-read-only-smoke-tests.md)
 - [ADR 0016: Separate runtime and migration database connections](docs/decisions/0016-separate-runtime-and-migration-database-connections.md)
+- [ADR 0017: Recoverable owner links and confirmed file management](docs/decisions/0017-owner-file-management.md)
+- [ADR 0018: Portable standalone containers](docs/decisions/0018-portable-standalone-containers.md)
 - [Cloudflare R2 setup](docs/deployment/cloudflare-r2.md)
 - [Owner authentication setup](docs/deployment/owner-authentication.md)
 - [Scheduled cleanup setup](docs/deployment/scheduled-cleanup.md)
 - [Production deployment runbook](docs/deployment/production-readiness.md)
+- [VPS Docker deployment](docs/deployment/vps-docker.md)
 - [Production monitoring and first response](docs/operations/production-monitoring.md)
 - [v1.0 release checklist](docs/deployment/release-checklist.md)
 - [Browser E2E testing](docs/testing/browser-e2e.md)

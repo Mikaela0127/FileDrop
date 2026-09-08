@@ -82,3 +82,6 @@ scheduler may call the same HTTPS endpoint with the same bearer header. Keep the
 secret out of URLs and query strings, keep the scheduler's execution timeout
 comfortably below the 15-minute lease, and alert on non-2xx responses. If calls
 overlap, the conditional claim and fencing value protect each row.
+
+The [VPS Docker guide](vps-docker.md) provides a hardened systemd service and
+timer for this purpose. Enable only one production scheduler after cutover.

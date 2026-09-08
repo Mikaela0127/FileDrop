@@ -21,3 +21,25 @@ updates:
     open-pull-requests-limit: 3
     labels:
       - dependencies
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:30"
+      timezone: Asia/Singapore
+    open-pull-requests-limit: 2
+    labels:
+      - dependencies
+
+  - package-ecosystem: docker
+    directory: /deploy
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:45"
+      timezone: Asia/Singapore
+    open-pull-requests-limit: 2
+    labels:
+      - dependencies

@@ -4,6 +4,7 @@ import {
   observeRequest,
   configureLogSink,
   captureLogs,
+  resolveApplicationRevision,
 } from "./logger";
 import { classifyLogError } from "./log-error-codes";
 afterEach(() => {
@@ -82,6 +83,26 @@ describe("safe structured logging", () => {
     expect(classifyLogError({ name: "PRIVATE", code: "PRIVATE" })).toBe(
       "OPERATION_FAILED",
     );
+  });
+  it("uses a provider-neutral deployment revision with a Vercel fallback", () => {
+    expect(
+      resolveApplicationRevision({
+        APP_REVISION: "0123456789abcdef0123456789abcdef01234567",
+        VERCEL_GIT_COMMIT_SHA: "abcdef1",
+      }),
+    ).toBe("0123456789abcdef0123456789abcdef01234567");
+    expect(
+      resolveApplicationRevision({ VERCEL_GIT_COMMIT_SHA: "abcdef1" }),
+    ).toBe("abcdef1");
+    expect(
+      resolveApplicationRevision({
+        APP_REVISION: "latest",
+        VERCEL_GIT_COMMIT_SHA: "abcdef1",
+      }),
+    ).toBe("abcdef1");
+    expect(
+      resolveApplicationRevision({ APP_REVISION: "latest" }),
+    ).toBeUndefined();
   });
   it("does not serialize raw messages, URLs, credentials or extra fields", () => {
     const write = vi.spyOn(console, "log").mockImplementation(() => {});

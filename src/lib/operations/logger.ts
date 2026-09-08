@@ -85,6 +85,14 @@ interface Details {
   clientStage?: "render" | "initialize" | "direct-upload" | "complete";
 }
 
+export function resolveApplicationRevision(
+  environment: Record<string, string | undefined> = process.env,
+): string | undefined {
+  return [environment.APP_REVISION, environment.VERCEL_GIT_COMMIT_SHA].find(
+    (revision): revision is string => /^[a-f0-9]{7,40}$/iu.test(revision ?? ""),
+  );
+}
+
 export function logEvent(event: Event, details: Details = {}): void {
   const error = details.error;
   // Allowlist fields: no error.message, cause, URL, headers, body, filenames or credentials.
@@ -103,9 +111,7 @@ export function logEvent(event: Event, details: Details = {}): void {
     status: details.status,
     clientStage: details.clientStage,
     durationMs: details.durationMs,
-    revision: /^[a-f0-9]{7,40}$/iu.test(process.env.VERCEL_GIT_COMMIT_SHA ?? "")
-      ? process.env.VERCEL_GIT_COMMIT_SHA
-      : undefined,
+    revision: resolveApplicationRevision(),
     ...(error !== undefined
       ? {
           errorCode: classifyLogError(error),

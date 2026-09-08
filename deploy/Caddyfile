@@ -1,0 +1,9 @@
+{
+	admin off
+}
+
+{$FILEDROP_DOMAIN} {
+	encode zstd gzip
+	header -Server
+	reverse_proxy app:3000
+}

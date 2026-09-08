@@ -1,0 +1,30 @@
+[Unit]
+Description=Delete expired FileDrop objects and finalize their metadata
+Documentation=https://github.com/Mikaela0127/FileDrop
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+EnvironmentFile=/opt/filedrop/config/cleanup.env
+ExecStart=/usr/bin/curl --fail-with-body --silent --show-error --max-time 600 --retry 2 --retry-delay 10 --retry-connrefused --variable %%CRON_SECRET --expand-header "Authorization: Bearer {{CRON_SECRET}}" https://filedrop.mikaela79.com/api/cron/cleanup
+UMask=0077
+
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native

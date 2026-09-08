@@ -128,3 +128,70 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Validate production Compose model
+        env:
+          FILEDROP_DOMAIN: filedrop.example.test
+          FILEDROP_MIGRATION_ENV_FILE: ${{ github.workspace }}/deploy/migration.env.example
+          FILEDROP_RUNTIME_ENV_FILE: ${{ github.workspace }}/deploy/runtime.env.example
+        run: docker compose --file deploy/compose.production.yaml config --quiet
+
+      - name: Validate Caddy configuration
+        run: >-
+          docker run --rm --network none --read-only
+          --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m
+          --env FILEDROP_DOMAIN=filedrop.example.test
+          --volume "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro"
+          caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+          caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+      - name: Build runtime image
+        run: >-
+          docker build --target runtime
+          --build-arg APP_REVISION="${{ github.sha }}"
+          --tag filedrop:ci .
+
+      - name: Build operations image
+        run: docker build --target operations --tag filedrop-operations:ci .
+
+      - name: Check image boundaries
+        run: |
+          test "$(docker image inspect filedrop:ci --format '{{.Config.User}}')" = node
+          docker run --rm --entrypoint /bin/sh filedrop:ci -c \
+            'test ! -e /app/.env && test ! -e /app/.git && test ! -e /app/prisma && test ! -e /app/node_modules/.bin/prisma'
+          docker run --rm --network none filedrop-operations:ci pnpm --version
+
+      - name: Start hardened runtime image
+        run: >-
+          docker run --detach --name filedrop-container-test
+          --read-only
+          --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m,uid=1000,gid=1000
+          --tmpfs /app/.next/cache:rw,noexec,nosuid,nodev,size=64m,uid=1000,gid=1000
+          --env APP_URL=http://127.0.0.1:3100
+          --env DATABASE_URL=postgresql://unused:unused@127.0.0.1:5432/unused
+          --publish 127.0.0.1:3100:3000
+          filedrop:ci
+
+      - name: Wait for container health
+        run: |
+          for attempt in $(seq 1 30); do
+            status="$(docker inspect filedrop-container-test --format '{{.State.Health.Status}}')"
+            if [ "$status" = healthy ]; then
+              break
+            fi
+            sleep 1
+          done
+          test "$(docker inspect filedrop-container-test --format '{{.State.Health.Status}}')" = healthy
+          curl --fail --silent --show-error http://127.0.0.1:3100/api/health
+
+      - name: Remove test container
+        if: always()
+        run: docker rm --force filedrop-container-test || true

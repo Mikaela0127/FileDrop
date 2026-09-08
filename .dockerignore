@@ -1,0 +1,31 @@
+# Use an allowlist so credentials, Git history, local databases, test output,
+# and editor files cannot accidentally enter a Docker build context or layer.
+**
+
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!next-env.d.ts
+!next.config.ts
+!postcss.config.mjs
+!prisma.config.ts
+!tsconfig.json
+
+!src/
+!src/**
+src/generated/
+
+!prisma/
+!prisma/**
+
+!scripts/
+!scripts/check-production-environment.ts
+
+!deploy/
+!deploy/container-healthcheck.mjs
+!deploy/release-gate.sh
+
+# This directory does not exist yet, but keeping it on the allowlist prevents a
+# future static asset from silently disappearing from the standalone image.
+!public/
+!public/**
