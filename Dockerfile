@@ -28,7 +28,7 @@ RUN --mount=type=cache,id=filedrop-pnpm,target=/pnpm/store \
     pnpm config set store-dir /pnpm/store \
     && pnpm install --frozen-lockfile \
     && pnpm rebuild @prisma/engines \
-    && ls node_modules/.pnpm/@prisma+engines@*/node_modules/@prisma/engines/schema-engine-linux-*-openssl-3.0.x >/dev/null
+    && ls node_modules/.pnpm/@prisma+engines@*/node_modules/@prisma/engines/schema-engine-*-openssl-3.0.x >/dev/null
 
 FROM dependencies AS builder
 
