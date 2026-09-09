@@ -108,8 +108,9 @@ git clone https://github.com/Mikaela0127/FileDrop.git /opt/filedrop/app
 cd /opt/filedrop/app
 ```
 
-For the first deployment, building on the amd64 VPS is the simplest path. The
-2 GiB swap already configured protects the 4 GiB host from short build spikes:
+For the first deployment, building on the amd64 VPS is the simplest path. A
+Next.js build peaks well above idle memory, so configure swap before the first
+build on a small host; 2 GiB of swap absorbs the spike:
 
 ```bash
 FILEDROP_BUILD_REVISION="$(git rev-parse HEAD)"
@@ -203,8 +204,9 @@ the application port, database, Caddy admin API, and Docker socket remain privat
 Check this with `sudo ss -ltnup`. Do not continue if port 3000 or 5432 is bound to
 a public address.
 
-Allow SSH, TCP 80, TCP 443, and optionally UDP 443 for HTTP/3 in both the netcup
-firewall and the VPS firewall. Do not expose any other FileDrop port.
+Allow SSH, TCP 80, TCP 443, and optionally UDP 443 for HTTP/3. Apply this in
+both the provider's network firewall and the firewall on the VPS itself, if the
+provider offers one. Do not expose any other FileDrop port.
 
 ## 6. Cut over DNS and verify
 
@@ -237,9 +239,10 @@ test remains necessary.
 
 ## 7. Install the cleanup timer
 
-Vercel Cron does not move with the application. Create a root-readable file whose
-value exactly matches `CRON_SECRET` in `runtime.env`, install the units, and test
-once before enabling the daily schedule:
+Vercel Cron does not move with the application. Create a root-readable
+environment file holding the deployment's public origin and a `CRON_SECRET` that
+exactly matches `runtime.env`, install the units, and test once before enabling
+the daily schedule:
 
 ```bash
 sudo install -m 0600 -o root -g root \

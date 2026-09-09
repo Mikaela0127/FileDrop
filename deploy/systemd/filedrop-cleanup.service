@@ -9,7 +9,7 @@ Type=oneshot
 User=deploy
 Group=deploy
 EnvironmentFile=/opt/filedrop/config/cleanup.env
-ExecStart=/usr/bin/curl --fail-with-body --silent --show-error --max-time 600 --retry 2 --retry-delay 10 --retry-connrefused --variable %%CRON_SECRET --expand-header "Authorization: Bearer {{CRON_SECRET}}" https://filedrop.mikaela79.com/api/cron/cleanup
+ExecStart=/usr/bin/curl --fail-with-body --silent --show-error --max-time 600 --retry 2 --retry-delay 10 --retry-connrefused --variable %%CRON_SECRET --expand-header "Authorization: Bearer {{CRON_SECRET}}" --url "${FILEDROP_CLEANUP_URL}"
 UMask=0077
 
 NoNewPrivileges=true
