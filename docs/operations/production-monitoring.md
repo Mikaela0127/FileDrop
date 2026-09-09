@@ -61,7 +61,7 @@ it contains no deployment secret.
 Use one small, disposable, non-sensitive file after the first deployment and
 after changes to storage, database, authentication, CORS, or lifecycle code.
 Follow the full sequence in the
-[production deployment runbook](../deployment/production-readiness.md): sign in,
+[Vercel deployment runbook](../deployment/production-readiness.md): sign in,
 upload directly to R2, complete verification, download through the share link,
 confirm statistics, expire the record, and verify cleanup.
 
@@ -74,13 +74,13 @@ credentialed end-to-end monitor.
 
 Review these provider dashboards without copying sensitive values into issues:
 
-| Signal             | Healthy indication                                | Investigate when                                               |
-| ------------------ | ------------------------------------------------- | -------------------------------------------------------------- |
-| Vercel application | Health and smoke checks pass                      | HTTP 5xx, timeouts, or failed deployments                      |
-| Vercel cron        | Daily cleanup invocation appears                  | Scheduled run is missing or repeatedly non-2xx                 |
-| Neon PostgreSQL    | Connections and storage remain within plan limits | Connection exhaustion, query errors, or unexpected growth      |
-| Cloudflare R2      | Expected object count/storage and low error rate  | Signed operations fail or expired bytes keep growing           |
-| FileDrop catalog   | Lifecycle and counts match recent owner activity  | Rows remain `PENDING`/`DELETING` beyond expected retry windows |
+| Signal            | Healthy indication                                | Investigate when                                                  |
+| ----------------- | ------------------------------------------------- | ----------------------------------------------------------------- |
+| Application host  | Health and smoke checks pass                      | HTTP 5xx, timeouts, failed deployments, or an unhealthy container |
+| Cleanup scheduler | Exactly one daily invocation appears              | Scheduled run is missing, duplicated, or repeatedly non-2xx       |
+| Neon PostgreSQL   | Connections and storage remain within plan limits | Connection exhaustion, query errors, or unexpected growth         |
+| Cloudflare R2     | Expected object count/storage and low error rate  | Signed operations fail or expired bytes keep growing              |
+| FileDrop catalog  | Lifecycle and counts match recent owner activity  | Rows remain `PENDING`/`DELETING` beyond expected retry windows    |
 
 Never place a passphrase, session cookie, share token, presigned URL,
 `Authorization` header, database URL, R2 credential, or environment dump in
@@ -89,12 +89,16 @@ logs, screenshots, public issues, or monitoring labels.
 ## First response to a failure
 
 1. Run the anonymous smoke test and note only the first failed check and time.
-2. Confirm whether the latest Vercel deployment and custom-domain TLS are ready.
+2. Confirm whether the current deployment and its TLS are ready — a promoted
+   Vercel deployment, or a running container behind its reverse proxy.
 3. If liveness passes but a protected boundary fails, inspect only the relevant
    provider's redacted logs and metrics.
 4. If credentials may have appeared anywhere, revoke or rotate them before
    continuing the investigation.
-5. Promote the previous healthy Vercel deployment for a code regression. Do not
-   assume that this rolls back PostgreSQL migrations or removes R2 objects.
+5. For a code regression, return to the previous known-good revision: promote
+   the previous Vercel deployment, or redeploy the previous image. Do not assume
+   that either rolls back PostgreSQL migrations or removes R2 objects — a
+   rollback replaces the application, not the schema, which is why migrations
+   must stay backward compatible.
 6. Preserve cleanup retry metadata when R2 deletion fails; do not manually claim
    that physical deletion completed.

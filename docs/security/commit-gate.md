@@ -65,12 +65,16 @@ before publishing the repository.
 
 - `deepmerge-ts` 7.x to 8.0.0, the first release containing the
   circular-reference denial of service fix;
-- `mysql2` below 3.22.0 to 3.22.0, which rejects an authentication-plugin
-  downgrade that could otherwise disclose a MySQL password on a non-TLS
-  connection.
+- `mysql2` below 3.23.1 to 3.23.1, the lowest release the audit gate accepts.
+  Earlier versions carry advisories rated high, including an
+  authentication-plugin downgrade that could disclose a MySQL password on a
+  non-TLS connection.
 
 FileDrop uses PostgreSQL rather than MySQL, but keeping a known-high vulnerable
 driver in Prisma's installed dependency graph would fail the repository's audit
 gate. Remove each override after Prisma declares an equivalent patched version
 directly. Prisma validation, client generation, migrations, integration tests,
 and the production build are required checks for these transitive overrides.
+
+`pnpm-workspace.yaml` holds the thresholds actually in effect. When you raise one
+there, update this section in the same commit.

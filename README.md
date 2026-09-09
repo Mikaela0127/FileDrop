@@ -164,8 +164,10 @@ for retrieving safe troubleshooting output.
 
 Open **File activity → View owner logs** to inspect recent application errors and
 management operations. The owner-only viewer retains up to 7 days / 10,000 entries
-in PostgreSQL and exports the displayed page. Vercel logs remain the fallback for
-database outages and hard crashes; no additional log-service account is required.
+in PostgreSQL and exports the displayed page. When the database itself is
+unavailable, or the process crashes before it can write, fall back to the
+platform logs of whichever host runs the application; no additional log-service
+account is required.
 
 ### Configure scheduled cleanup
 
@@ -183,11 +185,15 @@ The cleanup endpoint is:
   due `PENDING` and `READY` rows as `EXPIRED`, claim at most 100 cleanup
   candidates, remove their private R2 objects, and finalize them as `DELETED`.
 
-The committed `vercel.json` invokes this endpoint daily at 03:00 UTC, a schedule
-compatible with Vercel Hobby. A file becomes unavailable as soon as its database
-expiry is reached; the daily job controls only when its bytes are physically
-removed. Failed deletions return to the retry queue, while an interrupted
-`DELETING` job becomes reclaimable after a 15-minute lease.
+Any trusted scheduler that can send an authenticated daily GET works. The
+repository ships two: the committed `vercel.json` cron entry and the systemd
+timer under `deploy/systemd/`, both at 03:00 UTC. Enable exactly one of them per
+deployment, or the endpoint runs twice a day for no benefit.
+
+A file becomes unavailable as soon as its database expiry is reached; the daily
+job controls only when its bytes are physically removed. Failed deletions return
+to the retry queue, while an interrupted `DELETING` job becomes reclaimable
+after a 15-minute lease.
 
 See [the scheduled cleanup deployment guide](docs/deployment/scheduled-cleanup.md)
 before enabling the production cron job. Do not reuse the owner passphrase,
@@ -296,10 +302,10 @@ and credential review checklist.
 - [Cloudflare R2 setup](docs/deployment/cloudflare-r2.md)
 - [Owner authentication setup](docs/deployment/owner-authentication.md)
 - [Scheduled cleanup setup](docs/deployment/scheduled-cleanup.md)
-- [Production deployment runbook](docs/deployment/production-readiness.md)
+- [Vercel deployment runbook](docs/deployment/production-readiness.md)
 - [VPS Docker deployment](docs/deployment/vps-docker.md)
 - [Production monitoring and first response](docs/operations/production-monitoring.md)
-- [v1.0 release checklist](docs/deployment/release-checklist.md)
+- [Release checklist](docs/deployment/release-checklist.md)
 - [Browser E2E testing](docs/testing/browser-e2e.md)
 - [Contribution guide](CONTRIBUTING.md)
 - [Private vulnerability reporting policy](SECURITY.md)
@@ -311,12 +317,16 @@ and credential review checklist.
 - Expiry options: 1 hour, 24 hours, 3 days, and 7 days
 - Private Cloudflare R2 bucket with presigned upload/download URLs
 - PostgreSQL metadata and lifecycle state
-- Provider-neutral application, provisionally deployed with Vercel + Neon + R2
+- Provider-neutral application: any PostgreSQL, any S3-compatible private bucket,
+  and either the container or the Vercel deployment adapter
 
 ## Release
 
-`v1.0.1` is the current stable source release of FileDrop. See the
-[changelog](CHANGELOG.md) for its contents and the
+`v1.0.1` is the current stable source release of FileDrop. `main` has since
+gained owner file management, owner-visible logs, interface language switching,
+and the container deployment adapter; the next version number is not yet
+assigned. See the
+[changelog](CHANGELOG.md) for the tagged contents and the
 [release checklist](docs/deployment/release-checklist.md) for production rollout.
 Running an instance requires operator-owned PostgreSQL, private S3-compatible
 storage, deployment, DNS, and secret configuration; no production credentials

@@ -1,7 +1,13 @@
 # File management upgrade
 
-This upgrade keeps Vercel, PostgreSQL, and the private R2 bucket. No additional
-paid service is required. Do not run integration/E2E tests against production.
+This upgrade keeps the existing application host, PostgreSQL, and private R2
+bucket. No additional paid service is required. Do not run integration/E2E tests
+against production.
+
+The environment-variable and deployment steps below are written for the Vercel
+adapter. For a container deployment, set the same variables in the runtime
+environment file and apply them by rebuilding and recreating the container; see
+[VPS Docker deployment](vps-docker.md).
 
 ## 1. Prepare the independent encryption key
 
@@ -52,16 +58,21 @@ Use a small non-sensitive disposable file:
   response's `X-Request-ID` when investigating a failure.
 - Open File activity → View owner logs. Confirm the management events appear,
   try the severity/request ID filters, and download one displayed page. Anonymous
-  access to `/api/owner/logs` must return 401. No historic Vercel logs are imported.
+  access to `/api/owner/logs` must return 401. No historic platform logs are imported.
 
 ## Commit, push, and deployment
 
 A local `git commit` only records the changes on your computer; it does not
-change GitHub or the running service. With Vercel's Git integration enabled,
-pushing to the configured production branch starts a build, applies the committed
-migrations via the current build command, and promotes the deployment on success.
-Other branches usually create previews instead. Check the actual branch settings
-and build result in Vercel; a local repository cannot prove those settings.
+change GitHub or the running service.
+
+Whether a `git push` reaches the running service depends on the adapter. With
+Vercel's Git integration enabled, pushing to the configured production branch
+starts a build, applies the committed migrations via the current build command,
+and promotes the deployment on success; other branches usually create previews
+instead. A container deployment has no such link: pushing changes nothing until
+someone builds a new image and runs the release gate. Either way, a local
+repository cannot prove what the running service is doing — check the deployment
+itself.
 
 Configure `SHARE_TOKEN_KEYRING` before pushing this combined management update.
 The new database-backed log viewer does not require another environment variable.

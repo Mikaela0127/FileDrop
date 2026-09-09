@@ -1,10 +1,16 @@
-# Production deployment runbook
+# Vercel deployment runbook
+
+> **Adapter scope.** This document describes the Vercel deployment adapter.
+> FileDrop supports two: Vercel, and the container adapter in
+> [VPS Docker deployment](vps-docker.md). A given instance runs one of them.
+> Confirm which one before following any step here — the provisioning, cron, log
+> and rollback instructions below apply only to Vercel.
 
 This runbook covers the managed Vercel + Neon + Cloudflare R2 deployment. This
 arrangement does not require maintaining a virtual server: Vercel runs the
 Next.js application and daily scheduler, Neon runs PostgreSQL, and R2 stores
-file bytes. The same application can instead run behind Caddy on a VPS; use the
-[separate Docker runbook](vps-docker.md) for that deployment adapter.
+file bytes. Steps 1 and 2 provision Neon and R2 and apply to both adapters; the
+remaining steps are Vercel-specific.
 
 This document is an execution checklist, not a place to record real credentials.
 Keep provider values only in their encrypted settings and an ignored local

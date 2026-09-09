@@ -24,7 +24,13 @@ The R2 API token needs Object Read & Write access scoped to the FileDrop bucket;
 Cloudflare documents deletion through its S3-compatible API in the
 [R2 deletion guide](https://developers.cloudflare.com/r2/objects/delete-objects/).
 
-## Vercel schedule
+## Choosing a scheduler
+
+The repository ships two schedulers for this endpoint. **Enable exactly one per
+deployment.** Two active schedulers double the daily invocation without
+deleting anything sooner, and make a missed run harder to notice.
+
+## Option A: Vercel cron
 
 The committed `vercel.json` configures:
 
@@ -75,13 +81,15 @@ Expected behavior:
 Use only disposable test objects. R2 object deletion is irreversible; the
 database keeps a `DELETED` tombstone, not a copy of the file bytes.
 
-## Alternative scheduler
+## Option B: an external scheduler
 
-The cleanup use case and route do not depend on Vercel. Another trusted
-scheduler may call the same HTTPS endpoint with the same bearer header. Keep the
-secret out of URLs and query strings, keep the scheduler's execution timeout
+The cleanup use case and route do not depend on Vercel. Any trusted scheduler
+may call the same HTTPS endpoint with the same bearer header. Keep the secret
+out of URLs and query strings, keep the scheduler's execution timeout
 comfortably below the 15-minute lease, and alert on non-2xx responses. If calls
 overlap, the conditional claim and fencing value protect each row.
 
-The [VPS Docker guide](vps-docker.md) provides a hardened systemd service and
-timer for this purpose. Enable only one production scheduler after cutover.
+`deploy/systemd/` contains a hardened service and timer for this purpose,
+described in the [VPS Docker guide](vps-docker.md). A container deployment
+normally uses this option, because `vercel.json` has no effect outside Vercel.
+Disable the other scheduler at cutover rather than after it.

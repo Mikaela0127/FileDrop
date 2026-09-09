@@ -10,8 +10,8 @@ that page, not the whole retained history. The API (`GET /api/owner/logs`) check
 the signed owner session before reading any rows, and all responses are uncached.
 
 Sanitized application events are stored in a separate `operational_logs` table.
-This starts with events generated after this deployment: existing Vercel history
-is not imported. Deleting a file record does not delete its diagnostic history.
+This starts with events generated after this deployment: existing platform log
+history is not imported. Deleting a file record does not delete its diagnostic history.
 Ordinary successful page/session/download requests remain stdout-only; errors,
 file-specific upload/management events, and cleanup summaries are persisted.
 Merely viewing logs does not generate more stored logs.
@@ -52,6 +52,20 @@ runtime/build logs separately. Diagnostic events are not a durable audit trail.
 
 ## Platform fallback and sanitization
 
+Work outwards, and stop as soon as you have the answer:
+
+1. The owner log viewer above. It is sanitized by construction and needs no
+   provider access.
+2. The application's own stdout, through whatever collects it — the platform
+   dashboard on Vercel, `docker compose logs` for a container deployment.
+3. The scheduler's logs, for cleanup failures specifically.
+4. The reverse proxy, last. Its logs are the least sanitized of the four.
+
+Everything below step 1 can contain a request path or a raw framework error, so
+it is read privately and shared only after review.
+
+### On Vercel
+
 Open Vercel → FileDrop → Logs. Select Production and the incident time range.
 Search for the response's `X-Request-ID`, or an event such as `upload.complete`.
 The custom JSON request ID is distinct from Vercel's own platform RequestId.
@@ -59,7 +73,8 @@ The custom JSON request ID is distinct from Vercel's own platform RequestId.
 Application JSON is written to stdout; inspect its `level` field or search for
 the event rather than relying only on the platform's stderr/error filter.
 Platform-generated logs can still include a request path or raw framework error.
-Do not share raw exports, screenshots, or full `/d/...` paths publicly.
+Do not share raw exports, screenshots, or full `/d/...` paths publicly — a share
+token in a path is a live credential until the file expires.
 
 With the Vercel CLI already authenticated to the intended project, an example is:
 
@@ -80,6 +95,13 @@ For an already-saved local JSONL export:
 pnpm -s logs:sanitize < logs/raw.log > logs/incident.log
 ```
 
+### On a container deployment
+
+There is no `vercel logs` equivalent. Read the application container's bounded
+stdout and the scheduler's journal on the host, then pipe a saved file through
+the same sanitizer as shown below. The sanitizer accepts application JSONL
+regardless of which platform captured it.
+
 The `logs/` directory and `*.log` are ignored by Git. Review sanitized output
 before sharing and retain it only as long as needed. Reports should include the
 time/timezone, operation, sanitized request ID, deployment commit, browser,
@@ -87,9 +109,12 @@ expected result, and actual result; never attach the private file or link.
 
 ## Retention and cost
 
-Owner-visible database logs follow the retention above. No new log service or paid dependency is introduced. Platform fallback retention is
-limited: the [Vercel runtime log documentation](https://vercel.com/docs/logs/runtime)
-currently lists one hour for Hobby. Capture an incident promptly; this is not
+Owner-visible database logs follow the retention above. No new log service or
+paid dependency is introduced. Platform fallback retention is limited and
+adapter-specific: the
+[Vercel runtime log documentation](https://vercel.com/docs/logs/runtime)
+currently lists one hour for Hobby, and a container's stdout is bounded by its
+configured log rotation. Capture an incident promptly; this is not
 long-term log storage. Plan limits can change. For continuous archival or alerts,
 choose a separately reviewed retention/export service later.
 

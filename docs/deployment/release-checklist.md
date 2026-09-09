@@ -1,8 +1,13 @@
-# FileDrop v1.0 release checklist
+# FileDrop release checklist
 
 This checklist separates source-release verification from the account-authorized
 work required to operate FileDrop in production. Never paste completed secret
 values into this file, a commit, an issue, or a deployment note.
+
+Section 1 is adapter-independent. Sections 2 to 4 are written around the Vercel
+adapter; for a container deployment, substitute the equivalent steps from
+[VPS Docker deployment](vps-docker.md) and read "deployment" as "image build and
+release gate" rather than "Git push".
 
 ## 1. Freeze and verify the release
 
@@ -22,10 +27,10 @@ and delete rows. Production configuration remains separately validated by
 ## 2. Provision the production boundary
 
 Follow the detailed
-[production deployment runbook](production-readiness.md) to create an isolated
+[Vercel deployment runbook](production-readiness.md) to create an isolated
 Neon database, private Cloudflare R2 bucket, bucket-scoped storage credential,
-and Vercel project. Store production values only in each provider's encrypted
-settings.
+and application project. Store production values only in each provider's
+encrypted settings.
 
 - [ ] Use independent owner, session, cleanup, database, and storage secrets.
 - [ ] Configure pooled `DATABASE_URL` for runtime and direct `DIRECT_URL` for
@@ -42,7 +47,8 @@ settings.
 - [ ] Run the anonymous `pnpm smoke:production` command.
 - [ ] Use one small, disposable, non-sensitive file for the credentialed owner
       upload, download, catalog, statistics, expiry, and cleanup path.
-- [ ] Confirm the daily cleanup invocation appears in Vercel.
+- [ ] Confirm the daily cleanup invocation appears in the one scheduler this
+      deployment has enabled, and that no second scheduler is also running.
 - [ ] Confirm logs and browser tools contain no passphrase, cookie, bearer
       token, share token, presigned URL, database URL, or R2 credential.
 - [ ] Remove the disposable object through FileDrop's cleanup path.
@@ -56,7 +62,8 @@ result. Do not record a share link or provider value.
       repository's **Report a vulnerability** form is available.
 - [ ] Publish the verified source commit as a GitHub release.
 - [ ] Record production rollout status separately from the source release.
-- [ ] Observe Vercel, Neon, and R2 signals during the first real transfers.
+- [ ] Observe application host, Neon, and R2 signals during the first real
+      transfers.
 - [ ] Follow the
       [monitoring and first-response guide](../operations/production-monitoring.md)
       for failures; rotate any credential that may have been disclosed.
