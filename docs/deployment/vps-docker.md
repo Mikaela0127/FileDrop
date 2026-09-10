@@ -25,6 +25,10 @@ One-shot release-gate container
 Host systemd timer ── HTTPS + CRON_SECRET ──> /api/cron/cleanup
 ```
 
+This is the shape for a host dedicated to FileDrop. If the host already runs
+another reverse proxy on 80/443, read [section 9](#9-alternative-ingress-share-an-existing-reverse-proxy)
+before starting anything: sections 5 and 6 would collide with it.
+
 Caddy terminates TLS and does not enable request access logs. This is important
 because the `/d/<shareToken>` path itself is a bearer credential. Application
 logs remain structured and privacy-filtered. Docker rotates both services'
@@ -155,6 +159,10 @@ interpolate it. Never run `docker compose config` without `--quiet` against real
 credential files because the expanded output can disclose values to the terminal.
 
 ## 5. Start the gated service chain
+
+This section starts the bundled Caddy on ports 80 and 443. On a host that
+already runs another reverse proxy, follow
+[section 9](#9-alternative-ingress-share-an-existing-reverse-proxy) instead.
 
 Define a short shell variable for the public deployment coordinates; it contains
 no credentials:
@@ -293,3 +301,136 @@ free -h
 
 Delete old images deliberately by exact ID only after confirming they are not a
 rollback target. Do not automate broad volume pruning on this server.
+
+## 9. Alternative ingress: share an existing reverse proxy
+
+Sections 5 and 6 assume this host serves only FileDrop, so the bundled `caddy`
+service can own ports 80 and 443. When the host already runs another reverse
+proxy on those ports, a second one cannot bind them and would also duplicate
+certificate management. Attach the application to the existing proxy's Docker
+network instead, and leave the bundled Caddy unused.
+
+This does not retire the bundled Caddy. It remains the right choice for a host
+dedicated to FileDrop, and the same source tree supports both shapes.
+
+```text
+Internet
+   │ ports 80/443
+   ▼
+existing reverse proxy container
+   │ shared Docker network, upstream http://<alias>:3000
+   ▼
+FileDrop runtime container        (port never published to the host)
+```
+
+### Prepare
+
+Find the network the existing proxy is attached to:
+
+```bash
+docker inspect <proxy container> \
+  --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}} {{end}}'
+```
+
+Copy the overlay outside the repository and add both coordinates to
+`deploy.env`. Neither is a credential, but keep them with the other deployment
+coordinates rather than in Git, because they name another project's resources:
+
+```bash
+install -m 0640 deploy/compose.shared-proxy.example.yaml \
+  /opt/filedrop/config/compose.shared-proxy.yaml
+nano /opt/filedrop/config/deploy.env   # set FILEDROP_PROXY_NETWORK and FILEDROP_NETWORK_ALIAS
+```
+
+Then point the existing proxy at `http://<alias>:3000` and reload it. Validate
+that proxy's configuration with its own tooling before reloading: it serves
+other sites, so a syntax error there is not contained to FileDrop.
+
+### Run
+
+Every Compose command for this deployment must pass both files, and must name
+`app` explicitly:
+
+```bash
+FILEDROP_COMPOSE_ENV=/opt/filedrop/config/deploy.env
+
+docker compose \
+  --env-file "$FILEDROP_COMPOSE_ENV" \
+  --file deploy/compose.production.yaml \
+  --file /opt/filedrop/config/compose.shared-proxy.yaml \
+  config --quiet
+
+docker compose \
+  --env-file "$FILEDROP_COMPOSE_ENV" \
+  --file deploy/compose.production.yaml \
+  --file /opt/filedrop/config/compose.shared-proxy.yaml \
+  up --detach app
+unset FILEDROP_COMPOSE_ENV
+```
+
+The overlay moves the bundled `caddy` behind a `dedicated-proxy` profile, so an
+untargeted `up` no longer starts it. Confirm what a command would start before
+running it:
+
+```bash
+docker compose \
+  --env-file "$FILEDROP_COMPOSE_ENV" \
+  --file deploy/compose.production.yaml \
+  --file /opt/filedrop/config/compose.shared-proxy.yaml \
+  config --services
+```
+
+This must list `release-gate` and `app` only.
+
+The profile is a guard, not a prohibition. Two ways to defeat it, and one that
+bypasses something more important:
+
+- **Omitting the overlay.** The rendered model then has neither the shared
+  network nor the profile, so `up` starts the bundled Caddy and it collides on
+  80/443. This is why every command passes both files.
+- **Naming `caddy`.** An explicitly named service starts even when its profile
+  is inactive, which is what keeps section 5 working on a dedicated host. Here
+  it starts a second proxy. Name `app` only.
+- **Passing `--no-deps`.** That skips the release gate, so an unvalidated
+  configuration or an unmigrated schema can reach production. The gate is
+  otherwise unaffected: `app` still depends on it, and the overlay changes only
+  networking and the profile.
+
+Choose an alias that is unique across the shared network. Docker accepts
+duplicate aliases without complaint, and resolution then picks a container
+non-deterministically.
+
+### Verify
+
+```bash
+docker inspect <proxy container> \
+  --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}} {{end}}'
+docker inspect filedrop-production-app-1 \
+  --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}} {{end}}'
+```
+
+Both must list the shared network, and the application must not publish a host
+port. Finish with the external smoke test from section 6, then a manual transfer
+with a small disposable file.
+
+Confirm one privacy property before treating this as done: the shared proxy must
+not write request access logs for the FileDrop host. The `/d/<shareToken>` path
+is itself a bearer credential, so an access log that records it stores a working
+download link for as long as the log is retained. Caddy writes no access log
+unless a `log` directive is present; other proxies enable one by default.
+
+### What this shape costs
+
+A shared network is a wider trust boundary than a private one, and the template
+preserves that rather than introducing it. Every other container on the shared
+network can reach the application on port 3000 directly, without passing through
+the proxy: `expose` documents a port, it does not filter one. In the other
+direction, the application can reach the listening services of the projects it
+now shares a network with, which widens what a compromised container could
+touch.
+
+Neither direction publishes anything to the host, and joining two networks does
+not make the application route between them. Still, treat co-tenancy on that
+network as a decision rather than an implementation detail, and prefer a
+dedicated host and section 5 when the isolation matters more than the saved
+resources.

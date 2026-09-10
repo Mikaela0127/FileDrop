@@ -1,0 +1,40 @@
+# Overlay for a host whose ports 80/443 are already served by another reverse
+# proxy, so the bundled `caddy` service cannot bind them.
+#
+# Copy this file outside the repository, set FILEDROP_PROXY_NETWORK and
+# FILEDROP_NETWORK_ALIAS in the deployment environment file, and pass it after
+# the base file:
+#
+#   docker compose \
+#     --env-file /opt/filedrop/config/deploy.env \
+#     --file deploy/compose.production.yaml \
+#     --file /opt/filedrop/config/compose.shared-proxy.yaml \
+#     up --detach app
+#
+# Every Compose command for this deployment must pass both files, or the
+# rendered model will not match what is running. With this overlay the base
+# file's `caddy` service moves behind a profile, so an untargeted `up` no longer
+# starts it and collides on 80/443. That is a guard, not a prohibition: naming
+# `caddy` explicitly still starts it, which is what the dedicated-host workflow
+# in section 5 of the runbook relies on.
+#
+# The existing proxy reaches the application at http://<alias>:3000 on the
+# shared network. The application port is never published to the host.
+
+services:
+  # Not started unless targeted by name or by --profile dedicated-proxy.
+  caddy:
+    profiles:
+      - dedicated-proxy
+
+  app:
+    networks:
+      default: {}
+      shared-proxy:
+        aliases:
+          - ${FILEDROP_NETWORK_ALIAS:?Set FILEDROP_NETWORK_ALIAS to the upstream name the existing proxy resolves}
+
+networks:
+  shared-proxy:
+    external: true
+    name: ${FILEDROP_PROXY_NETWORK:?Set FILEDROP_PROXY_NETWORK to the existing proxy's Docker network}
