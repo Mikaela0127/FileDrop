@@ -5,6 +5,10 @@ import { isTrustedMutationOrigin } from "../../../../lib/http/same-origin";
 import type { OwnerAuthentication } from "../../../auth/application/owner-authentication";
 import { OWNER_SESSION_COOKIE_NAME } from "../../../auth/delivery/http/owner-auth-handlers";
 import {
+  UploadAbandonmentError,
+  type AbandonUploadResult,
+} from "../../application/abandon-upload";
+import {
   UploadCompletionError,
   type CompleteUploadResult,
 } from "../../application/complete-upload";
@@ -26,8 +30,10 @@ type InitializeUpload = (
   input: UploadMetadataInput,
 ) => Promise<InitializeUploadResult>;
 type CompleteUpload = (fileId: string) => Promise<CompleteUploadResult>;
+type AbandonUpload = (fileId: string) => Promise<AbandonUploadResult>;
 
 export interface OwnerUploadHttpHandlersDependencies {
+  abandonUpload: AbandonUpload;
   appOrigin: string;
   authentication: OwnerAuthentication;
   completeUpload: CompleteUpload;
@@ -35,6 +41,7 @@ export interface OwnerUploadHttpHandlersDependencies {
 }
 
 export interface OwnerUploadHttpHandlers {
+  abandon(request: NextRequest, fileId: string): Promise<NextResponse>;
   complete(request: NextRequest, fileId: string): Promise<NextResponse>;
   initialize(request: NextRequest): Promise<NextResponse>;
 }
@@ -90,6 +97,7 @@ export function ownerUploadUnavailableResponse(): NextResponse {
 }
 
 export function createOwnerUploadHttpHandlers({
+  abandonUpload,
   appOrigin,
   authentication,
   completeUpload,
@@ -163,6 +171,35 @@ export function createOwnerUploadHttpHandlers({
         }
 
         logEvent("upload.complete", { error, fileId });
+        return ownerUploadUnavailableResponse();
+      }
+    },
+
+    async abandon(request, fileId) {
+      const unauthorizedResponse = await authorizeOwnerMutation(
+        request,
+        appOrigin,
+        authentication,
+      );
+
+      if (unauthorizedResponse) {
+        return unauthorizedResponse;
+      }
+
+      try {
+        const result = await abandonUpload(parseCompleteUploadFileId(fileId));
+        logEvent("upload.abandon", { fileId });
+        return jsonResponse(result);
+      } catch (error) {
+        if (error instanceof InvalidCompleteUploadRequestError) {
+          return errorResponse("INVALID_REQUEST", 400);
+        }
+
+        if (error instanceof UploadAbandonmentError) {
+          return errorResponse("UPLOAD_NOT_FOUND", 404);
+        }
+
+        logEvent("upload.abandon", { error, fileId });
         return ownerUploadUnavailableResponse();
       }
     },

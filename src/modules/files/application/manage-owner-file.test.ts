@@ -3,6 +3,8 @@ import {
   createManageOwnerFile,
   UPLOAD_DELETION_SAFETY_MS,
 } from "./manage-owner-file";
+import { ABANDONED_UPLOAD_MILLISECONDS } from "../domain/file-policy";
+import { UploadAbandonmentError } from "./abandon-upload";
 import type { FileRecord } from "../domain/file-record";
 import type { FileManagementRepository } from "./ports/file-management-repository";
 import { generateShareToken, hashShareToken } from "../domain/share-token";
@@ -68,22 +70,42 @@ function setup(overrides: Partial<FileRecord> = {}) {
       return true;
     }),
     expireDueFiles: vi.fn(async () => 0),
+    findAbandonedUploadIds: vi.fn(async () => []),
     findDeletionCandidateIds: vi.fn(async () => []),
   } satisfies FileManagementRepository;
   const objectStore = {
     deleteObject: vi.fn(async () => {}),
     inspectObject: vi.fn(async () => null),
   };
+  // Storage reconciliation: by default the object never arrived.
+  const abandonUpload = vi.fn(async () => {
+    if (file?.status === "PENDING") file.status = "FAILED";
+  });
   const service = createManageOwnerFile({
+    abandonUpload,
     repository,
     getCipher: () => cipher,
     getObjectStore: () => objectStore,
     clock: () => now,
   });
-  return { service, repository, objectStore, token, file, cipher };
+  return {
+    abandonUpload,
+    service,
+    repository,
+    objectStore,
+    token,
+    file,
+    cipher,
+  };
 }
 
 describe("owner file management", () => {
+  it("keeps the abandonment cutoff far beyond the upload grant window", () => {
+    // A transfer that began just before its URL expired must not be cut short.
+    expect(ABANDONED_UPLOAD_MILLISECONDS).toBeGreaterThanOrEqual(
+      4 * UPLOAD_DELETION_SAFETY_MS,
+    );
+  });
   it("retrieves the same link without rotating its hash", async () => {
     const s = setup();
     expect(await s.service.share(s.file!.id, false)).toEqual({
@@ -128,7 +150,7 @@ describe("owner file management", () => {
     });
     expect(s.repository.expireReadyFile).toHaveBeenCalledTimes(1);
   });
-  it.each(["READY", "PENDING", "FAILED"] as const)(
+  it.each(["READY", "PENDING"] as const)(
     "does not remove a %s file",
     async (status) => {
       const s = setup({ status });
@@ -138,6 +160,76 @@ describe("owner file management", () => {
       expect(s.objectStore.deleteObject).not.toHaveBeenCalled();
     },
   );
+  it("removes a failed upload", async () => {
+    const s = setup({ status: "FAILED", uploadedAt: null });
+    await s.service.remove(s.file!.id);
+    expect(s.objectStore.deleteObject).toHaveBeenCalledWith(s.file!.objectKey);
+    expect(s.repository.removeDeletedRecord).toHaveBeenCalled();
+  });
+  it("fails and removes an abandoned upload whose object never arrived", async () => {
+    const s = setup({
+      status: "PENDING",
+      uploadedAt: null,
+      createdAt: new Date(now.getTime() - ABANDONED_UPLOAD_MILLISECONDS),
+    });
+    await s.service.remove(s.file!.id);
+    expect(s.abandonUpload).toHaveBeenCalledWith(s.file!.id);
+    expect(s.objectStore.deleteObject).toHaveBeenCalledWith(s.file!.objectKey);
+    expect(s.repository.removeDeletedRecord).toHaveBeenCalled();
+  });
+  it("treats an abandoned upload deleted concurrently as removed", async () => {
+    const s = setup({
+      status: "PENDING",
+      uploadedAt: null,
+      createdAt: new Date(now.getTime() - ABANDONED_UPLOAD_MILLISECONDS),
+    });
+    s.abandonUpload.mockImplementationOnce(async () => {
+      await s.repository.removeDeletedRecord();
+      throw new UploadAbandonmentError("UPLOAD_NOT_FOUND");
+    });
+    await expect(s.service.remove(s.file!.id)).resolves.toBeUndefined();
+    expect(s.repository.claimForDeletion).not.toHaveBeenCalled();
+  });
+  it("does not hide other reconciliation failures", async () => {
+    const s = setup({
+      status: "PENDING",
+      uploadedAt: null,
+      createdAt: new Date(now.getTime() - ABANDONED_UPLOAD_MILLISECONDS),
+    });
+    s.abandonUpload.mockRejectedValueOnce(new Error("storage unavailable"));
+    await expect(s.service.remove(s.file!.id)).rejects.toThrow(
+      "storage unavailable",
+    );
+    expect(s.objectStore.deleteObject).not.toHaveBeenCalled();
+  });
+  it("keeps an abandoned upload that storage shows was completed", async () => {
+    const s = setup({
+      status: "PENDING",
+      uploadedAt: null,
+      createdAt: new Date(now.getTime() - ABANDONED_UPLOAD_MILLISECONDS),
+    });
+    s.abandonUpload.mockImplementationOnce(async () => {
+      s.file!.status = "READY";
+    });
+    await expect(s.service.remove(s.file!.id)).rejects.toMatchObject({
+      code: "FILE_NOT_EXPIRED",
+    });
+    expect(s.objectStore.deleteObject).not.toHaveBeenCalled();
+    expect(s.repository.claimForDeletion).not.toHaveBeenCalled();
+  });
+  it("does not fail an upload that could still be in flight", async () => {
+    const s = setup({
+      status: "PENDING",
+      uploadedAt: null,
+      createdAt: new Date(now.getTime() - ABANDONED_UPLOAD_MILLISECONDS + 1),
+    });
+    await expect(s.service.remove(s.file!.id)).rejects.toMatchObject({
+      code: "FILE_NOT_EXPIRED",
+    });
+    expect(s.abandonUpload).not.toHaveBeenCalled();
+    expect(s.file!.status).toBe("PENDING");
+    expect(s.objectStore.deleteObject).not.toHaveBeenCalled();
+  });
   it("does not physically delete while an upload grant could still be usable", async () => {
     const s = setup({
       status: "EXPIRED",

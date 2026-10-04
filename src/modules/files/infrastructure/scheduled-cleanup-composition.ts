@@ -10,7 +10,9 @@ import { getServerEnv } from "../../../lib/config/server-env";
 import { prisma } from "../../../lib/database/prisma";
 import { logEvent } from "../../../lib/operations/logger";
 import { logRepository } from "../../logs/infrastructure/log-composition";
+import { createAbandonUpload } from "../application/abandon-upload";
 import { createCleanupExpiredFiles } from "../application/cleanup-expired-files";
+import { createCompleteUpload } from "../application/complete-upload";
 import {
   createScheduledCleanupHandler,
   scheduledCleanupUnavailableResponse,
@@ -31,9 +33,15 @@ async function runCleanup() {
     console.warn("FILEDROP_LOG_RETENTION_UNAVAILABLE");
   }
   if (!cleanupExpiredFiles) {
+    const fileRepository = new PrismaFileRepository(prisma);
+    const objectStore = getR2ObjectStore();
     cleanupExpiredFiles = createCleanupExpiredFiles({
-      fileCleanupRepository: new PrismaFileRepository(prisma),
-      objectStore: getR2ObjectStore(),
+      abandonUpload: createAbandonUpload({
+        completeUpload: createCompleteUpload({ fileRepository, objectStore }),
+        fileRepository,
+      }),
+      fileCleanupRepository: fileRepository,
+      objectStore,
       onFailure: (fileId, error) =>
         logEvent("cleanup.object", { fileId, error }),
     });

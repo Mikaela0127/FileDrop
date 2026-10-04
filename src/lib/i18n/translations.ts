@@ -163,7 +163,8 @@ export const english = {
     "Deletion is temporarily blocked while the upload authorization settles. Try again 30 minutes after the file was created.",
   "manage.FILE_NOT_AVAILABLE":
     "This file is no longer available. Refresh file activity.",
-  "manage.FILE_NOT_EXPIRED": "Only expired files can be removed.",
+  "manage.FILE_NOT_EXPIRED":
+    "Only expired files and failed uploads can be removed.",
   "manage.FILE_BUSY":
     "Another cleanup operation is running. Wait a moment and try again.",
   "manage.CONFIRMATION_REQUIRED":
@@ -355,7 +356,7 @@ const zhCN: Record<TranslationKey, string> = {
   "manage.UPLOAD_GRANT_ACTIVE":
     "上传授权仍在安全缓冲期内，请在文件创建 30 分钟后重试删除。",
   "manage.FILE_NOT_AVAILABLE": "文件已不可用，请刷新文件活动。",
-  "manage.FILE_NOT_EXPIRED": "只能删除已过期文件。",
+  "manage.FILE_NOT_EXPIRED": "只能删除已过期文件或上传失败的文件。",
   "manage.FILE_BUSY": "另一个清理操作正在运行，请稍候重试。",
   "manage.CONFIRMATION_REQUIRED":
     "此旧文件需要确认才能替换原链接，请刷新后重试。",
@@ -539,7 +540,7 @@ const zhTW: Record<TranslationKey, string> = {
   "manage.UPLOAD_GRANT_ACTIVE":
     "上傳授權仍在安全緩衝期內，請在檔案建立 30 分鐘後重試刪除。",
   "manage.FILE_NOT_AVAILABLE": "檔案已不可用，請重新整理檔案活動。",
-  "manage.FILE_NOT_EXPIRED": "只能刪除已過期檔案。",
+  "manage.FILE_NOT_EXPIRED": "只能刪除已過期檔案或上傳失敗的檔案。",
   "manage.FILE_BUSY": "另一個清理操作正在執行，請稍候重試。",
   "manage.CONFIRMATION_REQUIRED":
     "此舊檔案需要確認才能替換原連結，請重新整理後重試。",

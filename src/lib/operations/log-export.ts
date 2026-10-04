@@ -7,6 +7,7 @@ export const safeLogEntrySchema = z.object({
   event: z.enum([
     "upload.initialize",
     "upload.complete",
+    "upload.abandon",
     "download.resolve",
     "files.list",
     "files.share",

@@ -383,6 +383,37 @@ describe("PrismaFileRepository", () => {
     });
   });
 
+  it("finds only unexpired pending uploads created at or before the abandonment cutoff", async () => {
+    const now = new Date("2026-08-30T08:00:00.000Z");
+    const createdBefore = new Date("2026-08-30T02:00:00.000Z");
+    const notDue = new Date("2026-09-30T00:00:00.000Z");
+    const createdAt = async (
+      status: FileStatus,
+      offset: number,
+      expiresAt = notDue,
+    ) => {
+      const file = await createFileForCleanup(status, expiresAt);
+      await client.file.update({
+        where: { id: file.id },
+        data: { createdAt: new Date(createdBefore.getTime() + offset) },
+      });
+      return file;
+    };
+    const atCutoff = await createdAt("PENDING", 0);
+    const older = await createdAt("PENDING", -3_600_000);
+    await createdAt("PENDING", 1);
+    await createdAt("PENDING", -3_600_000, now);
+    await createdAt("READY", -3_600_000);
+    await createdAt("FAILED", -3_600_000);
+
+    await expect(
+      repository.findAbandonedUploadIds(createdBefore, now, 10),
+    ).resolves.toEqual([older.id, atCutoff.id]);
+    await expect(
+      repository.findAbandonedUploadIds(createdBefore, now, 1),
+    ).resolves.toEqual([older.id]);
+  });
+
   it("claims cleanup work with a fenced, reclaimable deletion lease", async () => {
     const leaseAcquiredAt = new Date("2026-08-30T08:00:00.000Z");
     const staleLeaseBefore = new Date("2026-08-30T07:45:00.000Z");

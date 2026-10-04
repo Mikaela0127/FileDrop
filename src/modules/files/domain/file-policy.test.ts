@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ABANDONED_UPLOAD_MILLISECONDS,
   EXPIRATION_OPTIONS,
+  isAbandonedUpload,
   isAllowedExpirationSeconds,
   isAllowedFileSize,
   MAX_FILE_SIZE_BYTES,
@@ -38,4 +40,12 @@ describe("file policy", () => {
       expect(isAllowedExpirationSeconds(expirationSeconds)).toBe(false);
     },
   );
+
+  it("treats an upload as abandoned from the cutoff onwards", () => {
+    const createdAt = new Date("2026-10-04T00:00:00.000Z");
+    const cutoff = createdAt.getTime() + ABANDONED_UPLOAD_MILLISECONDS;
+
+    expect(isAbandonedUpload(createdAt, new Date(cutoff - 1))).toBe(false);
+    expect(isAbandonedUpload(createdAt, new Date(cutoff))).toBe(true);
+  });
 });

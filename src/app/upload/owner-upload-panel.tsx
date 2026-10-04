@@ -57,6 +57,18 @@ async function readErrorCode(response: Response): Promise<string | undefined> {
   }
 }
 
+// Best effort: if this request is lost, scheduled cleanup still reconciles the
+// upload with storage once it is six hours old (ADR 0019).
+function abandonUpload(fileId: string): void {
+  void fetch(`/api/uploads/${encodeURIComponent(fileId)}/abandon`, {
+    method: "POST",
+    keepalive: true,
+    signal: AbortSignal.timeout(5000),
+  }).catch(() => {
+    /* The upload has already failed; this must not mask that error. */
+  });
+}
+
 function errorMessage(code: string | undefined): TranslationKey {
   switch (code) {
     case "UNAUTHENTICATED":
@@ -229,6 +241,9 @@ export function OwnerUploadPanel() {
       setMessageValues(undefined);
     } catch (error) {
       reportClientFailure(failureStage, diagnosticFileId);
+      if (failureStage === "direct-upload" && diagnosticFileId) {
+        abandonUpload(diagnosticFileId);
+      }
       const code = error instanceof Error ? error.message : undefined;
       setStage("error");
       setMessage(

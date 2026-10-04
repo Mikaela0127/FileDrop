@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { FileManagementActions } from "./file-management-actions";
 import { useLanguage } from "../../lib/i18n/language-provider";
+import { isAbandonedUpload } from "@/modules/files/domain/file-policy";
 
 type FileStatus =
   "PENDING" | "READY" | "FAILED" | "EXPIRED" | "DELETING" | "DELETED";
@@ -87,6 +88,15 @@ function effectiveStatus(file: CatalogFile, now: number): FileStatus {
     Date.parse(file.expiresAt) <= now
   ) {
     return "EXPIRED";
+  }
+
+  // Mirrors the server's abandonment age (ADR 0019). Reconciliation can still
+  // find the object in storage and make the file READY.
+  if (
+    file.status === "PENDING" &&
+    isAbandonedUpload(new Date(file.createdAt), new Date(now))
+  ) {
+    return "FAILED";
   }
 
   return file.status;

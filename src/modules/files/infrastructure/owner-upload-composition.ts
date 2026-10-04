@@ -8,6 +8,7 @@ import { getServerEnv } from "../../../lib/config/server-env";
 import { parseShareTokenKeyring } from "../../../lib/config/share-token-keyring";
 import { AesShareTokenCipher } from "./storage/aes-share-token-cipher";
 import { withOwnerAuthContext } from "../../auth/infrastructure/owner-auth-composition";
+import { createAbandonUpload } from "../application/abandon-upload";
 import { createCompleteUpload } from "../application/complete-upload";
 import { createInitializeUpload } from "../application/initialize-upload";
 import {
@@ -28,7 +29,15 @@ export function withOwnerUploadHttpHandlers(
     try {
       if (!ownerUploadHttpHandlers) {
         const fileRepository = new PrismaFileRepository(prisma);
+        const completeUpload = createCompleteUpload({
+          fileRepository,
+          objectStore: getR2ObjectStore(),
+        });
         ownerUploadHttpHandlers = createOwnerUploadHttpHandlers({
+          abandonUpload: createAbandonUpload({
+            completeUpload,
+            fileRepository,
+          }),
           appOrigin,
           authentication,
           initializeUpload: createInitializeUpload({
@@ -38,10 +47,7 @@ export function withOwnerUploadHttpHandlers(
             ),
             uploadUrlProvider: getR2UploadUrlProvider(),
           }),
-          completeUpload: createCompleteUpload({
-            fileRepository,
-            objectStore: getR2ObjectStore(),
-          }),
+          completeUpload,
         });
       }
 

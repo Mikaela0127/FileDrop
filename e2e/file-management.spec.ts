@@ -102,6 +102,78 @@ test("owner retrieves a stable link and confirms expiry and retryable record del
   expect(removalCalls).toBe(2);
 });
 
+test("an upload that can no longer complete is shown as failed and can be deleted", async ({
+  page,
+}) => {
+  const recentId = "123e4567-e89b-42d3-a456-426614174002";
+  let removed = false;
+  await page.route(`**/api/files/${id}`, async (route) => {
+    expect(route.request().method()).toBe("DELETE");
+    expect(route.request().postDataJSON()).toEqual({ confirmed: true });
+    removed = true;
+    await route.fulfill({ json: { success: true } });
+  });
+  await page.route("**/api/files", (route) =>
+    route.fulfill({
+      json: {
+        files: [
+          ...(removed
+            ? []
+            : [
+                {
+                  ...fixture,
+                  originalName: "abandoned.mp4",
+                  status: "PENDING",
+                  canRecoverShareLink: true,
+                },
+              ]),
+          {
+            ...fixture,
+            id: recentId,
+            originalName: "in-flight.mp4",
+            status: "PENDING",
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        limit: 50,
+      },
+    }),
+  );
+  await page.goto("/files");
+
+  const abandoned = page
+    .getByRole("heading", { name: "abandoned.mp4", exact: true })
+    .locator("xpath=ancestor::li[1]");
+  const inFlight = page
+    .getByRole("heading", { name: "in-flight.mp4", exact: true })
+    .locator("xpath=ancestor::li[1]");
+  await expect(
+    abandoned.getByText("Upload failed", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    abandoned.getByRole("button", { name: "Delete record", exact: true }),
+  ).toBeVisible();
+  await expect(
+    inFlight.getByText("Pending upload", { exact: true }),
+  ).toBeVisible();
+  await expect(inFlight.getByRole("button")).toHaveCount(0);
+
+  await abandoned
+    .getByRole("button", { name: "Delete record", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Confirm", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "abandoned.mp4", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "in-flight.mp4", exact: true }),
+  ).toBeVisible();
+  expect(removed).toBe(true);
+});
+
 test("legacy files warn before replacement and the management modal fits narrow screens", async ({
   page,
 }) => {

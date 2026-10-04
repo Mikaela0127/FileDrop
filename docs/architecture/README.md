@@ -99,8 +99,8 @@ authorization check immediately before creating storage access.
 The 256-bit share token is returned to the owner and persisted only as a lookup
 hash plus AES-256-GCM ciphertext under an independent environment key. Object keys
 contain an opaque UUID rather than the user-controlled file name. Signed upload
-URLs live for at most 15 minutes and are never stored. Both mutation endpoints
-repeat exact-origin and owner-session authorization checks; the `/upload` page's
+URLs live for at most 15 minutes and are never stored. Every upload mutation
+endpoint repeats exact-origin and owner-session authorization checks; the `/upload` page's
 session check is only a user-interface convenience.
 
 The application never trusts the browser's successful PUT response as proof.
@@ -185,8 +185,9 @@ fields displayed by the page: identifier, original name, content type, size,
 lifecycle status, creation and expiry times, and download statistics. It does
 not select or serialize `share_token_hash` or `object_key`.
 
-The page treats a due `PENDING` or `READY` row as effectively expired even if
-the daily cleanup job has not persisted its lifecycle transition yet. This is a
+The page treats a due `PENDING` or `READY` row as effectively expired, and a
+`PENDING` row old enough to be abandoned (ADR 0019) as effectively failed,
+even if the daily cleanup job has not persisted either transition yet. This is a
 presentation rule only; reads do not mutate lifecycle state. Aggregate cards
 therefore describe only the currently loaded bounded window, not every historic
 record.
@@ -413,9 +414,16 @@ so a scheduled cleanup can safely retry object deletion:
 
 ```text
 PENDING ──> READY ──> EXPIRED ──> DELETING ──> DELETED
-    ├──────────────> FAILED
-    └──────────────> EXPIRED
+   │                    ▲            ▲
+   ├────────────────────┘            │
+   └──> FAILED ──────────────────────┘
 ```
+
+A `PENDING` row becomes `FAILED` when completion finds a mismatched object, or
+when an upload abandoned for six hours is reconciled with storage and its object
+is absent. A browser-reported upload failure is reconciled at once, but an
+absent object fails the row only after those six hours (ADR 0019). Both `EXPIRED` and `FAILED`
+rows are deletion candidates once the upload grant can no longer be used.
 
 Upload and deletion transitions use conditional `UPDATE` operations as
 compare-and-set boundaries. A delayed or duplicated request cannot overwrite a

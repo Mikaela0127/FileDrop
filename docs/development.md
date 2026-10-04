@@ -84,11 +84,18 @@ The upload endpoints are:
 - `POST /api/uploads/:fileId/complete` — authenticate again, inspect R2 with
   `HeadObject`, compare actual size and content type, then conditionally move
   the row to `READY`.
+- `POST /api/uploads/:fileId/abandon` — called by the upload page after its
+  direct PUT fails. Authenticate again and reconcile with R2 through the
+  completion checks: a matching object completes the upload and a mismatched
+  one moves the row to `FAILED`. An absent object changes nothing until the
+  upload is six hours old, since a PUT may still commit.
 
 The browser sends file bytes directly to R2, never through Next.js or
 PostgreSQL. The completion endpoint is safe to retry after success. A missing
 object remains `PENDING`; an expired or mismatched object is rejected and
-best-effort deleted.
+best-effort deleted. Scheduled cleanup and owner deletion apply the same
+reconciliation to an upload still `PENDING` six hours after initialization, and
+the owner can delete `FAILED` records ([ADR 0019](decisions/0019-reconcile-abandoned-uploads.md)).
 
 The public download endpoint is:
 
@@ -125,8 +132,9 @@ key and ciphertext. Links are retrieved separately, only after owner authenticat
   hash-only files require `{ "confirmed": true }` once to replace the lost link.
 - `POST /api/files/:fileId/expire` — confirm manual expiry without changing the
   original scheduled expiry timestamp.
-- `DELETE /api/files/:fileId` — confirm deletion of an expired record. R2 deletion
-  must succeed before metadata is removed; storage failures retain a retryable record.
+- `DELETE /api/files/:fileId` — confirm deletion of an expired record or a failed
+  upload. R2 deletion must succeed before metadata is removed; storage failures
+  retain a retryable record.
 
 All management requests require an exact same-origin header and strict JSON.
 Expiry and deletion require `{ "confirmed": true }` in addition to the UI dialog.

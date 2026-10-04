@@ -46,7 +46,7 @@ Uploads also need an owner passphrase and a private R2 bucket; the
 
 - [Development guide](docs/development.md): setup, configuration, database and
   quality commands
-- [Documentation index](docs/README.md): features, architecture, 18 design
+- [Documentation index](docs/README.md): features, architecture, 19 design
   decision records, deployment and operations
 - [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) ·
   [Security policy](SECURITY.md)

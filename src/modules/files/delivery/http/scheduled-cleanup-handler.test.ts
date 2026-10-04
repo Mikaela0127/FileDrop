@@ -6,6 +6,7 @@ import { createScheduledCleanupHandler } from "./scheduled-cleanup-handler";
 const cronSecret = "c".repeat(32);
 const successfulResult: CleanupExpiredFilesResult = {
   expiredCount: 2,
+  reconciledCount: 1,
   examinedCount: 2,
   claimedCount: 2,
   deletedCount: 2,

@@ -190,6 +190,25 @@ export class PrismaFileRepository
     return update.count;
   }
 
+  async findAbandonedUploadIds(
+    createdBefore: Date,
+    now: Date,
+    limit: number,
+  ): Promise<string[]> {
+    const files = await this.client.file.findMany({
+      where: {
+        status: "PENDING",
+        createdAt: { lte: createdBefore },
+        expiresAt: { gt: now },
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: { id: true },
+      take: limit,
+    });
+
+    return files.map((file) => file.id);
+  }
+
   async findDeletionCandidateIds(
     staleLeaseBefore: Date,
     limit: number,

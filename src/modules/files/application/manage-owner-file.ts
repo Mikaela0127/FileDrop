@@ -1,3 +1,5 @@
+import { isAbandonedUpload } from "../domain/file-policy";
+import { UploadAbandonmentError } from "./abandon-upload";
 import { generateShareToken, hashShareToken } from "../domain/share-token";
 import type { FileManagementRepository } from "./ports/file-management-repository";
 import type { ShareTokenCipher } from "./ports/share-token-cipher";
@@ -22,6 +24,8 @@ export class FileManagementError extends Error {
 }
 
 export function createManageOwnerFile(deps: {
+  // Reconciles a PENDING upload with storage; see abandon-upload.ts.
+  abandonUpload: (id: string) => Promise<unknown>;
   repository: FileManagementRepository;
   getCipher: () => ShareTokenCipher;
   getObjectStore: () => ObjectStore;
@@ -72,9 +76,22 @@ export function createManageOwnerFile(deps: {
     async remove(id: string) {
       const now = clock();
       await repository.expireDueFile(id, now);
-      const file = await repository.findById(id);
+      let file = await repository.findById(id);
+      if (
+        file?.status === "PENDING" &&
+        isAbandonedUpload(file.createdAt, now)
+      ) {
+        // Storage decides: a matching object becomes READY and is kept.
+        try {
+          await deps.abandonUpload(id);
+        } catch (error) {
+          // A concurrent deletion removed the record; the check below returns.
+          if (!(error instanceof UploadAbandonmentError)) throw error;
+        }
+        file = await repository.findById(id);
+      }
       if (!file) return; // Retrying a successful deletion is safe.
-      if (!["EXPIRED", "DELETED", "DELETING"].includes(file.status))
+      if (!["EXPIRED", "FAILED", "DELETED", "DELETING"].includes(file.status))
         throw new FileManagementError("FILE_NOT_EXPIRED");
       if (now.getTime() - file.createdAt.getTime() < UPLOAD_DELETION_SAFETY_MS)
         throw new FileManagementError("UPLOAD_GRANT_ACTIVE");

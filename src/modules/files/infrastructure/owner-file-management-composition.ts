@@ -5,6 +5,8 @@ import { getServerEnv } from "../../../lib/config/server-env";
 import { parseShareTokenKeyring } from "../../../lib/config/share-token-keyring";
 import { observeRequest } from "../../../lib/operations/logger";
 import { withOwnerAuthContext } from "../../auth/infrastructure/owner-auth-composition";
+import { createAbandonUpload } from "../application/abandon-upload";
+import { createCompleteUpload } from "../application/complete-upload";
 import { createManageOwnerFile } from "../application/manage-owner-file";
 import {
   createOwnerFileManagementHandler,
@@ -27,8 +29,17 @@ export function handleOwnerFileManagement(
         : "files.remove",
     () =>
       withOwnerAuthContext(async ({ authentication, appOrigin }) => {
+        const repository = new PrismaFileRepository(prisma);
         const management = createManageOwnerFile({
-          repository: new PrismaFileRepository(prisma),
+          abandonUpload: (fileId) =>
+            createAbandonUpload({
+              completeUpload: createCompleteUpload({
+                fileRepository: repository,
+                objectStore: getR2ObjectStore(),
+              }),
+              fileRepository: repository,
+            })(fileId),
+          repository,
           getCipher: () =>
             new AesShareTokenCipher(
               parseShareTokenKeyring(getServerEnv().SHARE_TOKEN_KEYRING),

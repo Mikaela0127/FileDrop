@@ -79,6 +79,7 @@ assigned. See the [changelog](../CHANGELOG.md) for the tagged contents and the
 - [ADR 0016: Separate runtime and migration database connections](decisions/0016-separate-runtime-and-migration-database-connections.md)
 - [ADR 0017: Recoverable owner links and confirmed file management](decisions/0017-owner-file-management.md)
 - [ADR 0018: Portable standalone containers](decisions/0018-portable-standalone-containers.md)
+- [ADR 0019: Reconcile abandoned uploads with storage](decisions/0019-reconcile-abandoned-uploads.md)
 
 ## Deployment
 

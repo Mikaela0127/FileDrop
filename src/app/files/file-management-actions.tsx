@@ -140,7 +140,7 @@ export function FileManagementActions({
             </button>
           </>
         )}
-        {["EXPIRED", "DELETED", "DELETING"].includes(status) && (
+        {["EXPIRED", "FAILED", "DELETED", "DELETING"].includes(status) && (
           <button
             type="button"
             className={buttonClass}

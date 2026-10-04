@@ -2,6 +2,11 @@ import type { FileRecord } from "../../domain/file-record";
 
 export interface FileCleanupRepository {
   expireDueFiles(now: Date, limit: number): Promise<number>;
+  findAbandonedUploadIds(
+    createdBefore: Date,
+    now: Date,
+    limit: number,
+  ): Promise<string[]>;
   findDeletionCandidateIds(
     staleLeaseBefore: Date,
     limit: number,

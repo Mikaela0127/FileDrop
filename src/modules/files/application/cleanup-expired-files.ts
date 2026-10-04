@@ -1,3 +1,5 @@
+import { ABANDONED_UPLOAD_MILLISECONDS } from "../domain/file-policy";
+import { UploadAbandonmentError } from "./abandon-upload";
 import type { FileCleanupRepository } from "./ports/file-cleanup-repository";
 import type { ObjectStore } from "./ports/object-store";
 
@@ -5,6 +7,8 @@ export const CLEANUP_BATCH_SIZE = 100;
 export const DELETION_LEASE_MILLISECONDS = 15 * 60 * 1_000;
 
 export interface CleanupExpiredFilesDependencies {
+  // Reconciles a PENDING upload with storage; see abandon-upload.ts.
+  abandonUpload: (fileId: string) => Promise<unknown>;
   fileCleanupRepository: FileCleanupRepository;
   objectStore: ObjectStore;
   clock?: () => Date;
@@ -15,6 +19,7 @@ export interface CleanupExpiredFilesDependencies {
 
 export interface CleanupExpiredFilesResult {
   expiredCount: number;
+  reconciledCount: number;
   examinedCount: number;
   claimedCount: number;
   deletedCount: number;
@@ -39,6 +44,7 @@ function requirePositiveInteger(value: number, name: string): number {
 }
 
 export function createCleanupExpiredFiles({
+  abandonUpload,
   fileCleanupRepository,
   objectStore,
   clock = () => new Date(),
@@ -61,17 +67,44 @@ export function createCleanupExpiredFiles({
       leaseAcquiredAt,
       batchSize,
     );
+    // Excludes due rows, which belong to expiry rather than abandonment.
+    const abandonedIds = await fileCleanupRepository.findAbandonedUploadIds(
+      new Date(leaseAcquiredAt.getTime() - ABANDONED_UPLOAD_MILLISECONDS),
+      leaseAcquiredAt,
+      batchSize,
+    );
+    let reconciledCount = 0;
+    let failedCount = 0;
+    let skippedCount = 0;
+
+    for (const abandonedId of abandonedIds) {
+      try {
+        await abandonUpload(abandonedId);
+        reconciledCount += 1;
+      } catch (error) {
+        if (error instanceof UploadAbandonmentError) {
+          // The owner deleted the record since it was selected.
+          skippedCount += 1;
+          continue;
+        }
+
+        onFailure?.(abandonedId, error);
+        failedCount += 1;
+      }
+    }
+
     const candidateIds = await fileCleanupRepository.findDeletionCandidateIds(
       staleLeaseBefore,
       batchSize,
     );
     const result: CleanupExpiredFilesResult = {
       expiredCount,
+      reconciledCount,
       examinedCount: candidateIds.length,
       claimedCount: 0,
       deletedCount: 0,
-      failedCount: 0,
-      skippedCount: 0,
+      failedCount,
+      skippedCount,
     };
 
     for (const candidateId of candidateIds) {

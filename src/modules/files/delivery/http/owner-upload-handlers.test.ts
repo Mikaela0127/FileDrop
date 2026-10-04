@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { OwnerAuthentication } from "../../../auth/application/owner-authentication";
 import { OWNER_SESSION_COOKIE_NAME } from "../../../auth/delivery/http/owner-auth-handlers";
+import { UploadAbandonmentError } from "../../application/abandon-upload";
 import { UploadCompletionError } from "../../application/complete-upload";
 import { createOwnerUploadHttpHandlers } from "./owner-upload-handlers";
 
@@ -53,14 +54,25 @@ function createHarness() {
     uploadedAt: now,
     expiresAt,
   }));
+  const abandonUpload = vi.fn(async () => ({
+    fileId,
+    status: "FAILED" as const,
+  }));
   const handlers = createOwnerUploadHttpHandlers({
+    abandonUpload,
     appOrigin,
     authentication,
     initializeUpload,
     completeUpload,
   });
 
-  return { authentication, completeUpload, handlers, initializeUpload };
+  return {
+    abandonUpload,
+    authentication,
+    completeUpload,
+    handlers,
+    initializeUpload,
+  };
 }
 
 function mutationRequest(
@@ -192,6 +204,83 @@ describe("owner upload HTTP handlers", () => {
     const body = await response.text();
     expect(body).toContain("UPLOAD_UNAVAILABLE");
     expect(body).not.toContain("secret provider detail");
+  });
+
+  it("records an abandoned upload and returns only its state", async () => {
+    const harness = createHarness();
+
+    const response = await harness.handlers.abandon(
+      mutationRequest(`/api/uploads/${fileId}/abandon`),
+      fileId,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      fileId,
+      status: "FAILED",
+    });
+    expect(harness.abandonUpload).toHaveBeenCalledWith(fileId);
+  });
+
+  it.each(unauthorizedCases)(
+    "rejects an unauthorized abandonment before the use case",
+    async ({ headers, status }) => {
+      const harness = createHarness();
+
+      const response = await harness.handlers.abandon(
+        mutationRequest(`/api/uploads/${fileId}/abandon`, undefined, headers),
+        fileId,
+      );
+
+      expect(response.status).toBe(status);
+      expect(harness.abandonUpload).not.toHaveBeenCalled();
+    },
+  );
+
+  it("maps an unknown abandoned upload to 404", async () => {
+    const harness = createHarness();
+    harness.abandonUpload.mockRejectedValueOnce(
+      new UploadAbandonmentError("UPLOAD_NOT_FOUND"),
+    );
+
+    const response = await harness.handlers.abandon(
+      mutationRequest(`/api/uploads/${fileId}/abandon`),
+      fileId,
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "UPLOAD_NOT_FOUND" },
+    });
+  });
+
+  it("does not expose unexpected abandonment errors", async () => {
+    const harness = createHarness();
+    harness.abandonUpload.mockRejectedValueOnce(
+      new Error("secret database detail"),
+    );
+
+    const response = await harness.handlers.abandon(
+      mutationRequest(`/api/uploads/${fileId}/abandon`),
+      fileId,
+    );
+
+    expect(response.status).toBe(503);
+    const body = await response.text();
+    expect(body).toContain("UPLOAD_UNAVAILABLE");
+    expect(body).not.toContain("secret database detail");
+  });
+
+  it("rejects an invalid abandonment identifier before the use case", async () => {
+    const harness = createHarness();
+    const response = await harness.handlers.abandon(
+      mutationRequest("/api/uploads/not-a-uuid/abandon"),
+      "not-a-uuid",
+    );
+
+    expect(response.status).toBe(400);
+    expect(harness.abandonUpload).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid path identifier before calling the use case", async () => {

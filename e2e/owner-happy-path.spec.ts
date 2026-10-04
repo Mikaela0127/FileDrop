@@ -175,6 +175,64 @@ test("owner can sign in, upload, copy the share URL, and review activity", async
   await expectNoHorizontalOverflow(page);
 });
 
+test("a failed direct upload is reported as abandoned", async ({ page }) => {
+  const abandoned: string[] = [];
+  let completed = false;
+
+  await page.route("**/api/auth/session", (route) =>
+    route.fulfill({ json: { authenticated: true } }),
+  );
+  await page.route("**/api/uploads/initialize", (route) =>
+    route.fulfill({
+      json: {
+        fileId: FILE_ID,
+        fileExpiresAt: FILE_EXPIRES_AT,
+        shareToken: SHARE_TOKEN,
+        upload: {
+          expiresAt: "2099-09-01T08:15:00.000Z",
+          headers: { "Content-Type": "application/pdf", "If-None-Match": "*" },
+          method: "PUT",
+          url: `https://00000000000000000000000000000000.r2.cloudflarestorage.com/objects/${FILE_ID}`,
+        },
+      },
+    }),
+  );
+  await page.route(
+    "https://00000000000000000000000000000000.r2.cloudflarestorage.com/**",
+    (route) => route.fulfill({ status: 500 }),
+  );
+  await page.route("**/api/uploads/*/abandon", async (route) => {
+    expect(route.request().method()).toBe("POST");
+    abandoned.push(new URL(route.request().url()).pathname);
+    await route.fulfill({ json: { fileId: FILE_ID, status: "FAILED" } });
+  });
+  await page.route("**/api/uploads/*/complete", async (route) => {
+    completed = true;
+    await route.fulfill({ status: 500 });
+  });
+  await page.route("**/api/diagnostics", (route) =>
+    route.fulfill({ status: 204 }),
+  );
+
+  await page.goto("/upload");
+  await page.getByLabel("File").setInputFiles({
+    name: FILE_NAME,
+    mimeType: "application/pdf",
+    buffer: Buffer.from(FILE_CONTENT),
+  });
+  await page.getByRole("button", { name: "Upload and verify" }).click();
+
+  await expect(
+    page.getByText("R2 rejected or interrupted the direct upload.", {
+      exact: false,
+    }),
+  ).toBeVisible();
+  await expect
+    .poll(() => abandoned)
+    .toEqual([`/api/uploads/${FILE_ID}/abandon`]);
+  expect(completed).toBe(false);
+});
+
 test("keyboard users can skip repeated content", async ({ page }) => {
   await page.goto("/");
 

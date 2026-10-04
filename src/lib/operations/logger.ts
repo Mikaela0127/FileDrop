@@ -65,6 +65,7 @@ export async function captureLogs<T>(action: () => Promise<T>): Promise<T> {
 type Event =
   | "upload.initialize"
   | "upload.complete"
+  | "upload.abandon"
   | "download.resolve"
   | "files.list"
   | "files.share"
