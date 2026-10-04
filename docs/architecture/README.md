@@ -264,9 +264,11 @@ React escaping and input validation.
 The Vercel build gate and VPS release-gate container both apply committed
 migrations before a new application release starts. The VPS runtime receives
 only the pooled database URL; its direct migration credential exists only in
-the one-shot operations container. Compose will not start a new runtime unless
-that gate completes successfully, and will not start Caddy until runtime health
-passes. Caddy is the only published container and
+the one-shot operations container. On a first start, Compose will not start the
+runtime unless that gate completes successfully, and will not start Caddy until
+runtime health passes. An update runs the gate on its own before replacing the
+running application, because Compose would otherwise replace it first and only
+then wait for the gate. Caddy is the only published container and
 keeps request access logging disabled so bearer share paths never enter proxy
 logs. Both deployment adapters apply the same global browser security headers.
 

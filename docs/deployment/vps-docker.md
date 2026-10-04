@@ -281,14 +281,79 @@ window, disable the Vercel cron/automatic production path or retire that deploym
 ## 8. Update and roll back
 
 For each reviewed revision, build new revision-tagged images instead of replacing
-the previous tag. Update `deploy.env`, run `config --quiet`, then start the same
-gated Compose chain. Finish with the external smoke test.
+the previous tag. Keep the previous images: they are the rollback target.
 
-If application code regresses, point `deploy.env` back to the preceding runtime
-image and recreate `app`. Do not attempt to reverse PostgreSQL migrations or R2
-operations as part of a code rollback. Never run `docker compose down --volumes`:
-the Caddy data volume contains certificate state. Keep at least one previously
-verified image until the new release is proven healthy.
+Do not update by repeating the start command from section 5. When the
+application is already running, `up` replaces the running container first and
+only then waits for the release gate. If the gate fails, the old application has
+already been removed and the new one is never started, so a failed validation or
+migration becomes an outage. Instead, run the gate on its own while the current
+release keeps running, and replace the application only after it succeeds:
+
+1. Copy `deploy.env` to a dated backup. Set `FILEDROP_IMAGE`,
+   `FILEDROP_OPERATIONS_IMAGE` and `FILEDROP_REVISION` to the new revision,
+   compare the file with the backup, and run `config --quiet`.
+2. List pending migrations with the new operations image, then read the
+   `migration.sql` of each one listed, including what it locks. The gate applies
+   every pending migration, not only the ones this revision adds, to the
+   database the current release is serving from. The status command reports
+   migration names and their state, not their SQL or effects, and exits with
+   status 1 whenever a migration is pending, so read its output rather than its
+   exit status.
+3. Run the gate in the foreground. It prints the configuration check result
+   before it starts migrating. If it fails at the configuration check, the
+   current release and the database are untouched: restore the backup and
+   investigate. If it fails while migrating, the current release's container
+   is still running, but earlier pending migrations, and part of the failing
+   one, may already be applied. Do not retry or switch until you have inspected
+   the actual schema and completed or reversed the failed migration's changes
+   by hand. Only then record the outcome with `prisma migrate resolve`, which
+   changes Prisma's migration history, not the schema. This is why migrations
+   must stay additive and backward compatible.
+4. Replace only the application, then wait for it to report healthy and finish
+   with the external smoke test from section 6.
+
+These commands use the single-file form from section 5. On a host that shares
+another reverse proxy, pass both files as in section 9. First list the pending
+migrations, then read their SQL before going on:
+
+```bash
+docker compose \
+  --env-file /opt/filedrop/config/deploy.env \
+  --file deploy/compose.production.yaml \
+  run --rm release-gate pnpm exec prisma migrate status
+```
+
+Then run the gate and replace the application only if the gate succeeds. Keep
+the `&&`: as two separate commands, the replacement would still run after a
+failed gate.
+
+```bash
+docker compose \
+  --env-file /opt/filedrop/config/deploy.env \
+  --file deploy/compose.production.yaml \
+  run --rm release-gate &&
+docker compose \
+  --env-file /opt/filedrop/config/deploy.env \
+  --file deploy/compose.production.yaml \
+  up --no-deps --detach app
+```
+
+`--no-deps` is correct in the second command only because the gate for this
+exact release has just succeeded; without it, Compose would replace the
+application and then run the gate a second time. Never use it to skip a gate
+that has not run. The switch interrupts requests briefly, a few seconds when the new release
+starts normally, so avoid the cleanup timer's scheduled run; a cleanup request
+that fails is retried the next day.
+
+If the new release regresses, restore the `deploy.env` backup and run the same
+`up --no-deps --detach app`. A rollback replaces the application, not the
+schema: do not rerun the gate for it, and do not attempt to reverse PostgreSQL
+migrations or R2 operations. If a Compose command fails partway, inspect
+`ps --all` before running another; a second `up` is not transactional. Never run
+`docker compose down --volumes`: the Caddy data volume contains certificate
+state. Keep at least one previously verified image until the new release is
+proven healthy.
 
 Useful resource checks are:
 
@@ -368,13 +433,17 @@ docker compose \
 unset FILEDROP_COMPOSE_ENV
 ```
 
+This `up` is for the first start. To update a deployment that is already
+running, follow [section 8](#8-update-and-roll-back) with both files: repeating
+this `up` replaces the running application before the gate has passed.
+
 The overlay moves the bundled `caddy` behind a `dedicated-proxy` profile, so an
 untargeted `up` no longer starts it. Confirm what a command would start before
 running it:
 
 ```bash
 docker compose \
-  --env-file "$FILEDROP_COMPOSE_ENV" \
+  --env-file /opt/filedrop/config/deploy.env \
   --file deploy/compose.production.yaml \
   --file /opt/filedrop/config/compose.shared-proxy.yaml \
   config --services
@@ -394,7 +463,8 @@ bypasses something more important:
 - **Passing `--no-deps`.** That skips the release gate, so an unvalidated
   configuration or an unmigrated schema can reach production. The gate is
   otherwise unaffected: `app` still depends on it, and the overlay changes only
-  networking and the profile.
+  networking and the profile. The update procedure in section 8 uses
+  `--no-deps` only after running the gate for the same release on its own.
 
 Choose an alias that is unique across the shared network. Docker accepts
 duplicate aliases without complaint, and resolution then picks a container
