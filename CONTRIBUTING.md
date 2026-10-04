@@ -14,9 +14,9 @@ changes with tests are preferred over broad feature additions.
 
 ## Local setup
 
-Follow the [README](README.md) to install Node.js, pnpm, PostgreSQL, and the
-generated Prisma Client. Use only the disposable local database and a dedicated
-test bucket when storage access is required.
+Follow the [development guide](docs/development.md) to install Node.js, pnpm,
+PostgreSQL, and the generated Prisma Client. Use only the disposable local
+database and a dedicated test bucket when storage access is required.
 
 Create a focused branch, make the smallest coherent change, and add tests at the
 lowest useful layer. New architectural decisions should include an ADR under
